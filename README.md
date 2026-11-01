@@ -3,27 +3,76 @@
 <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="120" alt="App icon"/>
 
 # Smart Dialer
+
+### Open-Source Dialer & Contacts Manager for Android
+
+Smart Dialer is a modern, privacy-focused open-source dialer and contact manager. Built with modern Android development standards, it combines robust telephony features with a stunning UI featuring real-time blur and "Liquid Glass" visual effects.
+
 </div>
 
-### Open-Source Dialer & Contacts
+---
 
-Smart Dialer is a modern, open-source dialer and contact manager designed for privacy and aesthetics. Built with the latest Android design standards, it combines powerful functionality with a stunning user interface featuring true blur and "Liquid Glass" effects.
+## 🌟 Key Features
 
-### Key Features:
+- **🔒 Privacy First:** 100% open-source, zero trackers, zero ads, and strictly necessary permissions only.
+- **✨ Advanced UI & Aesthetics:** Real-time blur effects, Liquid Glass styling, and expressive Material 3 UI design.
+- **📞 Offline Caller ID (CNAP):** Identifies callers locally using CNAP protocol support (carrier dependent).
+- **🛡️ Secure Private Contacts:** Create hidden, encrypted private contacts protected by biometrics or a custom PIN/password.
+- **🎨 Deep Customization:**
+  - Adjustable real-time blur intensity
+  - Dynamic & custom color themes
+  - Custom typography and app icon selector
+  - Reorderable navigation tabs & customizable swipe actions
+- **📇 All-in-One Management:** Full-featured call log, dialer with T9 search, contact management, SIM card picker, call blocking, and call analytics.
 
-**Privacy First:** 100% open-source, no trackers, no ads, and no unnecessary permissions.
+---
 
-**Advanced UI:** Real-time blur effects and a Liquid Glass aesthetic that follows the latest Android design guidelines while maintaining the familiar layout of Google apps.
+## 🛠 Tech Stack & Architecture
 
-**Offline Caller ID (CNAP):** Identify callers without an internet connection using CNAP (if supported by your carrier).
+- **Language:** 100% Kotlin
+- **UI Framework:** Jetpack Compose (Material 3 Expressive)
+- **Dependency Injection:** Koin
+- **Local Storage:** Room Database & DataStore Preferences
+- **Navigation:** Jetpack Navigation & Compose Destinations
+- **Image Loading:** Coil
+- **Code Generation:** KSP (Kotlin Symbol Processing)
+- **Flavors:** `gplay`, `phoenix`, `rustore`
 
-**Privacy & Security:** Create private contacts and secure the app using biometric authentication or a password.
+---
 
-**Deep Customization:**
-- Adjust blur intensity.
-- Change app icons.
-- Custom color themes.
-- Custom fonts.
-- Toggle and reorder tabs.
+## 🚀 Building & Running
 
-**All-in-One:** A fully featured dialer and contact manager. Easily edit, manage, and organize your contacts.
+### Prerequisites
+- **Android Studio:** Ladybug (2024.2) or newer recommended
+- **JDK:** Java 17
+- **Min SDK:** 29 (Android 10)
+- **Target SDK:** 37
+
+### Clone & Build
+```bash
+# Clone the repository
+git clone https://github.com/Phoenix365/SmartDialer.git
+cd SmartDialer
+
+# Build Debug APK (e.g. Phoenix flavor)
+./gradlew assemblePhoenixDebug
+```
+
+---
+
+## 🤝 Contributing
+
+Contributions, bug reports, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Phoenix365/SmartDialer/issues) or submit a pull request.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git checkout -b feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+

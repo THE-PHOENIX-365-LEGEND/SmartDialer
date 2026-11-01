@@ -1,0 +1,773 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_launcher_name">ফোন</string>
+
+    <string name="widget_description">দ্রুত ডায়াল সহ সাম্প্রতিক কলসমূহ</string>
+    <string name="copy" tools:ignore="PrivateResource">কপি করুন</string>
+    <string name="copy_path">পাথ কপি করুন</string>
+    <string name="paste">পেস্ট করুন</string>
+    <string name="delete">মুছে ফেলুন</string>
+    <string name="delete_contact">যোগাযোগ মুছে ফেলুন</string>
+    <string name="delete_contact_subtitle">আপনি কি নিশ্চিত যে এই যোগাযোগটি মুছে ফেলতে চান? এই কাজটি পূর্বબঅবস্থায় ফেরানো যাবে না।</string>
+    <string name="delete_contacts">যোগাযোগসমূহ মুছে ফেলুন</string>
+    <string name="delete_contacts_subtitle">আপনি কি নিশ্চিত যে নির্বাচিত %sটি যোগাযোগ মুছে ফেলতে চান? এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।</string>
+    <string name="selected_items">%sটি নির্বাচিত</string>
+    <string name="select">নির্বাচন করুন</string>
+    <string name="select_all">সব নির্বাচন করুন</string>
+    <string name="deselect_all">সব অনির্বাচন করুন</string>
+    <string name="plus_more">%1$s (+আরও %2$sটি)</string>
+    <string name="backspace">ব্যাকস্পেস</string>
+    <string name="back">পেছনে</string>
+    <string name="edit">সম্পাদ나</string>
+    <string name="done">সম্পন্ন</string>
+    <string name="ok">ঠিক আছে</string>
+    <string name="on">চালু</string>
+    <string name="off">বন্ধ</string>
+    <string name="cancel">বাতিল</string>
+    <string name="open">খুলুন</string>
+    <string name="save">সংরক্ষণ করুন</string>
+    <string name="confirm">নিশ্চিত করুন</string>
+    <string name="close">বন্ধ করুন</string>
+    <string name="clear">সাফ করুন</string>
+    <string name="share">শেয়ার করুন</string>
+    <string name="share_subtitle">অন্যদের সাথে যোগাযোগের বিবরণ পাঠান</string>
+    <string name="use">ব্যবহার করুন</string>
+    <string name="connect_via_social">সোশ্যাল মিডিয়ার মাধ্যমে সংযুক্ত হন</string>
+    <string name="import_text">ইম্পোর্ট করুন</string>
+    <string name="export_text">এক্সপোর্ট করুন</string>
+    <string name="call_is_ongoing">কল চলছে — ফিরে যেতে ট্যাপ করুন</string>
+    <string name="filter_all">সব</string>
+    <string name="filter_missed">মিসড</string>
+    <string name="filter_incoming">ইনকামিং</string>
+    <string name="filter_outgoing">আউটগোয়িং</string>
+    <string name="filter_rejected">প্রত্যাখ্যাত</string>
+    <string name="sim_picker_title">সিম কার্ড নির্বাচন করুন</string>
+    <string name="label_unknown_number">অজানা নম্বর</string>
+    <string name="reset">রিসেট করুন</string>
+    <string name="add">যোগ করুন</string>
+    <string name="use_number">নম্বর ব্যবহার করুন: %s</string>
+    <string name="scroll_to_top">উপরে স্ক্রোল করুন</string>
+
+    <!-- Search -->
+    <string name="search">অনুসন্ধান</string>
+    <string name="search_contacts">যোগাযোগ খুঁজুন</string>
+    <string name="no_results">কোনো ফলাফল পাওয়া যায়নি</string>
+    <string name="no_contacts_found">কোনো যোগাযোগ পাওয়া যায়নি</string>
+    <string name="no_calls_found">কোনো কল পাওয়া যায়নি</string>
+    <string name="call_query">%s-কে কল করুন</string>
+    <string name="voice_input">ভয়েস ইনপুট</string>
+    <string name="filter_results">ফলাফল ফিল্টার করুন</string>
+    <string name="lookup">অনুসন্ধান</string>
+
+    <!-- Billing -->
+    <string name="no_connection">কোনো সংযোগ নেই</string>
+    <string name="loading_price">লোড হচ্ছে…</string>
+
+    <!-- Project support -->
+    <string name="project_support">প্রজেক্ট সাপোর্ট</string>
+    <string name="project_support_summary">ভবিষ্যতের উন্নয়ন এবং অতিরিক্ত ফিচারের জন্য পেড অ্যাপটি নিন</string>
+    <string name="project_support_description">
+        <![CDATA[
+        আমরা বিশ্বাস করি গোপনীয়তা বিনামূল্যে হওয়া উচিত। এজন্য সমস্ত প্রয়োজনীয় ফিচার এক টাকাও খরচ না করেই আপনার জন্য উন্মুক্ত।<br>
+        আপনি যদি আমাদের কাজ পছন্দ করেন, তবে আমাদের একটি কফি খাওয়াতে পারেন। কৃতজ্ঞতাস্বরূপ আপনি পাবেন:<br> <b>সমস্ত থিম, কাস্টম রঙ এবং কাস্টম ফন্ট।</b><br>
+        এটি কোনো প্রিমিয়াম টিয়ার নয়। এটি কৃতজ্ঞতার একটি ছোট উপহার। আপনার সমর্থন স্মার্ট ডায়ালারকে স্বাধীন, নিরাপদ এবং বিজ্ঞাপন-মুক্ত রাখতে সাহায্য করে।
+        ]]>
+    </string>
+    <string name="support_project_to_unlock">আনলক করতে প্রজেক্ট সমর্থন করুন</string>
+    <string name="restore_purchase">ক্রয় পুনরুদ্ধার করুন</string>
+    <string name="continue_support">চালিয়ে যান</string>
+    <string name="monthly">মাসিক</string>
+    <string name="monthly_description">যারা মাসিক অবদান রাখতে চান তাদের জন্য নমনীয়তা</string>
+    <string name="yearly">বার্ষিক</string>
+    <string name="yearly_description">বিশ্বের সেরা কলিং অ্যাপের জন্য বার্ষিক সমর্থন</string>
+    <string name="lifetime">আজীবন</string>
+    <string name="lifetime_description">একবার পেমেন্ট করুন এবং আজীবন আপনার সমস্ত কলে সর্বোচ্চ সুবিধা উপভোগ করুন</string>
+    <string name="most_flexible">সবচেয়ে নমনীয়</string>
+    <string name="bast_value">সেরা মূল্য</string>
+    <string name="pay_once">একবার পেমেন্ট করুন</string>
+    <string name="support_development">উন্নয়ন সমর্থন করুন</string>
+    <string name="support_all_options">সব বিকল্প সমর্থন করুন</string>
+    <string name="support_development_description1">স্মার্ট ডায়ালার গর্বের সাথে ওপেন-সোর্স এবং সম্পূর্ণ বিনামূল্যে। আপনার সমর্থন এটিকে এভাবেই ধরে রাখতে সাহায্য করে।</string>
+    <string name="support_development_description2">অনুদান দিয়ে আপনি কেবল ফিচার আনলক করছেন না — আপনি গোপনীয়তা, স্বচ্ছতা এবং স্বাধীন উন্নয়নের ভবিষ্যতে বিনিয়োগ করছেন।</string>
+    <string name="support_development_description3">ছোট হোক বা বড়, প্রতিটি অবদানই মূল্যবান।</string>
+    <string name="unlock_all_features">সমস্ত ফিচার আনলক করুন</string>
+    <string name="all_features_unlocked">✨ সমস্ত ফিচার আনলক করা হয়েছে! আপনার সমর্থনের জন্য ধন্যবাদ!</string>
+    <string name="thank_you_for_your_support">আপনার সমর্থনের জন্য ধন্যবাদ! ❤️</string>
+    <string name="features_locked">লক করা ফিচারসমূহ</string>
+    <string name="your_donation_ensures">আপনার অনুদান নিশ্চিত করে:</string>
+    <string name="your_donation_ensures_1">✅ নিয়মিত আপডেট এবং সুরক্ষা প্যাচ</string>
+    <string name="your_donation_ensures_2">✅ নতুন ফিচার এবং উন্নতি</string>
+    <string name="your_donation_ensures_3">✅ সবার জন্য বিনামূল্যে অ্যাক্সেস</string>
+    <string name="your_donation_ensures_4">✅ ওপেন-সোর্স উন্নয়ন</string>
+
+    <!-- About -->
+    <string name="about">সম্পর্কে</string>
+    <string name="rate_app">অ্যাপটি রেট করুন</string>
+    <string name="other_apps">আমাদের অন্যান্য অ্যাপসমূহ</string>
+    <string name="source_code">সোর্স কোড</string>
+    <string name="privacy_policy">গোপনীয়তা নীতি</string>
+
+    <!-- Updates -->
+    <string name="updates">আপডেটসমূহ</string>
+    <string name="check_for_updates">আপডেটের জন্য চেক করুন</string>
+    <string name="check_for_updates_subtitle">নতুন সংস্করণ উপলব্ধ আছে কিনা তা পরীক্ষা করুন</string>
+    <string name="auto_check_for_updates">স্বয়ংক্রিয় আপডেট চেক</string>
+    <string name="auto_check_for_updates_subtitle">অ্যাপ চালুর সময় স্বয়ংক্রিয়ভাবে নতুন সংস্করণ চেক করুন</string>
+    <string name="checking_for_updates">আপডেট চেক করা হচ্ছে…</string>
+    <string name="up_to_date">আপ-টু-ডেট</string>
+    <string name="up_to_date_subtitle">অ্যাপটিতে সর্বশেষ সংস্করণ %1$s চলছে।</string>
+    <string name="update_available">আপডেট উপলব্ধ</string>
+    <string name="update_available_subtitle">সংস্করণ %1$s উপলব্ধ রয়েছে।</string>
+    <string name="update_available_subtitle_dialog">স্মার্ট ডায়ালারের একটি নতুন বিল্ড ডাউনলোড এবং অন্বেষণ করার জন্য প্রস্তুত।</string>
+    <string name="download_update">আপডেট ডাউনলোড করবেন?</string>
+    <string name="download_update_subtitle">স্মার্ট ডায়ালার v%1$s উপলব্ধ (আপনার কাছে v%2$s রয়েছে)। APK ফাইলটি ডাউনলোড ফোল্ডারে ডাউনলোড হবে।</string>
+    <string name="install_update">আপডেট ইনস্টল করবেন?</string>
+    <string name="install_update_subtitle">v%1$s আপডেটটি ইতিমধ্যে ডাউনলোড হয়েছে। আপনি কি ���খনই এটি ইনস্টল করতে চান?</string>
+    <string name="download">ডাউনলোড</string>
+    <string name="not_now">এখন নয়</string>
+    <string name="downloading_update">আপডেট ডাউনলোড হচ্ছে</string>
+    <string name="please_wait">দয়া করে অপেক্ষা করুন…</string>
+    <string name="check_failed">চেক করতে ব্যর্থ হয়েছে</string>
+    <string name="check_failed_subtitle">আপডেট চেক করা যায়নি। পরে আবার চেষ্টা করুন।</string>
+    <string name="download_complete">ডাউনলোড সম্পন্ন হয়েছে</string>
+    <string name="download_complete_subtitle">%1$s সংস্করণের আপডেট সফলভাবে ডাউনলোড হয়েছে।</string>
+    <string name="open_downloads_folder_manually">ডাউনলোড ফোল্ডার ম্যানুয়ালি খুলুন</string>
+    <string name="try_again">আবার চেষ্টা করুন</string>
+    <string name="couldnt_check_for_updates">আপডেট চেক করা যায়নি</string>
+    <string name="couldnt_check_for_updates_subtitle">GitHub রিলিজ রিপোজিটরি অ্যাক্সেস করা যায়নি। আপনার সংযোগ পরীক্ষা করুন।</string>
+    <string name="no_release_notes">এই সংস্করণের জন্য কোনো রিলিজ নোট দেওয়া হয়নি।</string>
+    <string name="installed">ইনস্টল করা হয়েছে</string>
+    <string name="latest">সর্বশেষ</string>
+    <string name="later">পরে</string>
+    <string name="view_update">আপডেট দেখুন</string>
+
+    <!-- Contributors -->
+    <string name="contributors">অবদানকারীগণ</string>
+    <string name="development_team">ডেভেলপমেন্ট টিম</string>
+    <string name="apps_that_inspired_us">যে অ্যাপগুলি আমাদের অনুপ্রাণিত করেছে</string>
+
+    <!-- Settings -->
+    <string name="settings">সেটিংস</string>
+    <string name="appearance">চেহারা (Appearance)</string>
+    <string name="interface_settings">ইন্টারফেস</string>
+    <string name="interface_settings_subtitle">থিম, রঙ এবং লেআউট</string>
+    <string name="app_theme">অ্যাপ থিম</string>
+    <string name="theme_auto">স্বয়ংক্রিয়</string>
+    <string name="theme_light">লাইট</string>
+    <string name="theme_dark">ডার্ক</string>
+    <string name="theme_auto_black_white">স্বয়ংক্রিয় কালো/সাদা</string>
+    <string name="theme_white">সাদা</string>
+    <string name="theme_black">কালো</string>
+    <string name="custom_color">কাস্টম রঙ</string>
+    <string name="custom_color_subtitle">একটি কাস্টম রঙের উপর ভিত্তি করে রঙের স্কিম</string>
+    <string name="hex_color">হেক্স কোড রঙ</string>
+    <string name="hex_color_subtitle">একটি বৈধ ৬-সংখ্যার হেক্স কোড লিখুন</string>
+    <string name="custom_font">কাস্টম ফন্ট</string>
+    <string name="custom_font_subtitle">অ্যাপে ব্যবহার করার জন্য একটি .ttf ফাইল বেছে নিন</string>
+    <string name="font_size">ফন্টের আকার</string>
+    <string name="rounding_radius">গোল করার ব্যাসার্ধ</string>
+    <string name="app_icon">অ্যাপ আইকন</string>
+    <string name="app_icon_subtitle">হোম স্ক্রিনে প্রদর্শিত অ্যাপ আইকনটি বেছে নিন</string>
+    <string name="app_name_change">অ্যাপের নাম</string>
+    <string name="language">ভাষা</string>
+    <string name="visual_effects">দৃশ্যমান প্রভাব (Visual effects)</string>
+    <string name="not_supported_on_this_device">এই ডিভাইসে সমর্থিত নয়</string>
+    <string name="not_supported_on_this_device_subtitle">ব্লার এবং লিকুইড গ্লাস এর জন্য অ্যান্ড্রয়েড ১২ বা তার বেশি সংস্করণ প্রয়োজন</string>
+    <string name="material_liquid_you_glass">মেটেরিয়াল লিকুইড ইউ গ্লাস</string>
+    <string name="material_liquid_you_glass_subtitle">লিকুইড গ্লাস ইফেক্ট প্রয়োগ করুন</string>
+    <string name="material_blur_effects">মেটেরিয়াল ব্লার ইফেক্ট</string>
+    <string name="material_blur_effects_subtitle">ব্যাকগ্রাউন্ড ব্লার ইফেক্ট প্রয়োগ করুন</string>
+    <string name="blur_intensity">ব্লার তীব্রতা</string>
+    <string name="liquid_glass_elements">লিকুইড গ্লাস উপাদানসমূহ</string>
+    <string name="liquid_glass_elements_subtitle">কোন ইন্টারফেস উপাদানগুলি লিকুইড গ্লাস ইফেক্ট ব্যবহার করবে তা বেছে নিন</string>
+    <string name="blur_effect_elements">ব্লার ইফেক্ট উপাদানসমূহ</string>
+    <string name="blur_effect_elements_subtitle">কোন ইন্টারফেস উপাদানগুলি ব্লার ইফেক্ট ব্যবহার করবে তা বেছে নিন</string>
+    <string name="bottom_navigation_bar">বটম নেভিগেশন বার</string>
+    <string name="liquid_glass_bottom_navigation_bar">বটম নেভিগেশন বারে লিকুইড গ্লাস ইফেক্ট প্রয়োগ করুন</string>
+    <string name="blur_effect_bottom_navigation_bar">বটম নেভিগেশন বারে ব্লার ইফেক্ট প্রয়োগ করুন</string>
+    <string name="call_screen">কল স্ক্রিন</string>
+    <string name="liquid_glass_call_screen">কল স্ক্রিনে লিকুইড গ্লাস ইফেক্ট প্রয়োগ করুন</string>
+    <string name="blur_effect_call_screen">কল স্ক্রিনে ব্লার ইফেক্ট প্রয়োগ করুন</string>
+    <string name="liquid_glass_dialpad">ডায়ালপ্যাডে লিকুইড গ্লাস ইফেক্ট প্রয়োগ করুন</string>
+    <string name="blur_effect_dialpad">ডায়ালপ্যাডে ব্লার ইফেক্ট প্রয়োগ করুন</string>
+    <string name="scroll_animation">স্ক্রোল অ্যানিমেশন</string>
+    <string name="scroll_animation_device">স্ক্রোল করার সময় তালিকার আইটেমগুলির জন্য উপস্থিত হওয়ার অ্যানিমেশন</string>
+    <string name="call_ui">কল ইন্টারফেস</string>
+    <string name="incoming_call_ui">ইনকামিং কল ইন্টারফেস</string>
+    <string name="incoming_call_ui_subtitle">ইনকামিং কলের উত্তর কীভাবে দেবেন তা বেছে নিন</string>
+    <string name="incoming_call_ui_default_swipe">ডিফল্ট সোয়াইপ</string>
+    <string name="incoming_call_ui_horizontal_swipe">অনুভূমিক সোয়াইপ</string>
+    <string name="incoming_call_ui_buttons">বাটনসমূহ</string>
+    <string name="incoming_call_ui_slide_to_answer">উত্তর দিতে স্লাইড করুন (iOS)</string>
+    <string name="incoming_call_ui_vertical_swipe">উল্লম্ব সোয়াইপ</string>
+    <string name="dialpad_animations">ডায়ালপ্যাড অ্যানিমেশন</string>
+    <string name="dialpad_animations_subtitle">ডিজিট টাইপ করার সময় অ্যানিমেশন দেখান</string>
+    <string name="hide_voice_search">ভয়েস সার্চ লুকান</string>
+    <string name="hide_voice_search_subtitle">ভয়েস সার্চ বাটন লুকান</string>
+
+    <string name="avatars_settings">অ্যাভাটার সেটিংস</string>
+    <string name="avatars_settings_subtitle">রঙ, ফ্রেম এবং আরও অনেক কিছু কাস্টমাইজ করুন</string>
+    <string name="avatar_colors">অ্যাভাটার রঙ</string>
+    <string name="colorful">রঙিন</string>
+    <string name="primary_color">প্রাথমিক রঙ</string>
+    <string name="secondary_color">মাধ্যমিক রঙ</string>
+    <string name="google_contacts_color">গুগল কন্টাক্টস রঙ</string>
+    <string name="show_first_letter_in_avatar">অ্যাভাটারের প্রথম অক্ষর দেখান</string>
+    <string name="show_first_letter_in_avatar_subtitle">ছবি না থাকলে প্রথম অক্ষর দেখায়</string>
+    <string name="avatar_frame">অ্যাভাটার ফ্রেম</string>
+    <string name="avatar_frame_subtitle">অ্যাভাটারের চারপাশে একটি বর্ডার দেখান</string>
+    <string name="show_picture_in_avatar">অ্যাভাটারে ছবি দেখান</string>
+    <string name="show_picture_in_avatar_subtitle">উপলব্ধ থাকলে কন্টাক্টের ছবি দেখান</string>
+
+    <string name="сaller_ui">কলার ইন্টারফেস</string>
+    <string name="сaller_ui_subtitle">কল স্ক্রিন এবং নিয়ন্ত্রণ কাস্টমাইজ করুন</string>
+    <string name="end_call_button">কল শেষ করার বাটন</string>
+    <string name="customize_width">প্রস্থ কাস্টমাইজ করুন</string>
+    <string name="customize_width_subtitle">কল শেষ করার বাটনের প্রস্থ সামঞ্জস্য করুন</string>
+
+    <string name="navigations">নেভিগেশন</string>
+    <string name="navigations_subtitle">ট্যাব দৃশ্যমানতা এবং স্টাইল</string>
+    <string name="tab_sections">ট্যাব বিভাগসমূহ</string>
+    <string name="tab_sections_subtitle">কোন ট্যাবগুলি দৃশ্যমান হবে তা বেছে নিন এবং নেভিগেশন বারে পুনর্বিন্যাস করতে টেনে আনুন</string>
+    <string name="navigation_style">নেভিগেশন স্টাইল</string>
+    <string name="pill_style_navigation">পিল স্টাইল নেভিগেশন</string>
+    <string name="pill_style_navigation_subtitle">ডিফল্ট নিচের বারের পরিবর্তে একটি ভাসমান পিল স্টাইল নেভিগেশন বার দেখান</string>
+    <string name="icon_only_bottom_bar">শুধ우 আইকনযুক্ত নিচের বার</string>
+    <string name="icon_only_bottom_bar_subtitle">নেভিগেশন থেকে পাঠ্য লেবেল সরিয়ে দেয়</string>
+    <string name="startup_tab">স্টার্টআপ ট্যাব</string>
+    <string name="startup_tab_subtitle">অ্যাপ শুরু করার সময় কোন ট্যাবটি খুলবে তা বেছে নিন</string>
+    <string name="last_used">সর্বশেষ ব্যবহৃত</string>
+
+    <string name="calls_and_system">কল এবং সিস্টেম</string>
+    <string name="call_settings">কল সেটিংস</string>
+    <string name="call_settings_subtitle">অ্যাকাউন্ট, সেন্সর এবং পকেট মোড</string>
+    <string name="default_sim">ডিফল্ট সিম</string>
+    <string name="ask_first">আগে জিজ্ঞাসা করুন</string>
+    <string name="calling_accounts">কলিং অ্যাকাউন্টসমূহ</string>
+    <string name="system_settings">সিস্টেম সেটিংস</string>
+    <string name="call_behavior">কল আচরণ</string>
+    <string name="proximity_sensor">ব্যাকগ্রাউন্ড প্রক্সিমিটি সেন্সর</string>
+    <string name="proximity_sensor_subtitle">কলের সময় কান ফোনের কাছাকাছি এলে স্ক্রিন বন্ধ করুন</string>
+    <string name="pocket_mode_prevention">পকেট মোড</string>
+    <string name="pocket_mode_prevention_subtitle">পকেটে থাকা অবস্থায় ভুলবশত উত্তর দেওয়া/প্রত্যাখ্যান করা রোধ করুন</string>
+    <string name="floating_ongoing_call">ভাসমান কল</string>
+    <string name="floating_ongoing_call_subtitle">কল চলাকালীন একটি ভাসমান বুদবুদ দেখান। \"অন্যান্য অ্যাপের উপরে প্রদর্শন\" অনুমতি প্রয়োজন</string>
+    <string name="direct_call_on_tap">ট্যাপ করলেই সরাসরি কল</string>
+    <string name="direct_call_on_tap_subtitle">কল লগের একটি এন্ট্রিতে ট্যাপ করে সরাসরি কল করুন</string>
+    <string name="auto_speaker">স্বয়ংক্রিয় স্পিকার</string>
+    <string name="auto_speaker_subtitle">ফোন কান থেকে দূরে গেলে স্বয়ংক্রিয়ভাবে স্পিকার চালু করুন এবং কাছে এলে আবার ইয়ারপিসে ফিরে যান</string>
+    <string name="fullscreen_calls">ফুল-স্ক্রিন কল</string>
+    <string name="fullscreen_calls_subtitle">ইনকামিং কল সবসময় ফুল-স্ক্রিন মোডে প্রদর্শিত হয়</string>
+
+    <!-- Speed dial -->
+    <string name="settings_speed_dial_title">স্পিড ডায়াল</string>
+    <string name="settings_speed_dial_enable">স্পিড ডায়াল সক্রিয় করুন</string>
+    <string name="settings_speed_dial_enable_supporting">নির্ধারিত নম্বরে কল করতে একটি কী চেপে ধরে রাখুন</string>
+    <string name="settings_speed_dial_assignments_header">অ্যাসাইনমেন্টসমূহ</string>
+    <string name="settings_speed_dial_not_assigned">নির্ধারিত নয়</string>
+    <string name="settings_speed_dial_no_number">কোনো নম্বর নেই</string>
+    <string name="settings_speed_dial_open">স্পিড ডায়াল সেটিংস খুলবেন?</string>
+
+    <string name="quick_response">দ্রুত প্রতিক্রিয়া (Quick response)</string>
+    <string name="auto_redial">অটো রিডায়াল</string>
+    <string name="auto_redial_subtitle">আউটগোয়িং কল ব্যস্ত থাকলে, প্রত্যাখ্যান করলে বা উত্তর না দিলে স্বয়ংসক্রিয়ভাবে রিডায়াল করুন</string>
+    <string name="auto_redial_attempts">রিডায়ালের সংখ্যা</string>
+    <string name="auto_redial_delay">পুনরায় চেষ্টার মধ্যে বিলম্ব</string>
+    <string name="attempts_format">%1$d বার</string>
+    <string name="seconds_format">%1$d সেকেন্ড</string>
+    <string name="quick_responses">দ্রুত প্রতিক্রিয়াগুলো</string>
+    <string name="quick_responses_subtitle">ইনকামিং কলের জন্য প্রি-ডিফাইন্ড এসএমএস প্রত্যাখ্যানের উত্তর পরিচালনা করুন</string>
+    <string name="quick_responses_description">ইনকামিং কলের সময় মেসেজ বাটনে ট্যাপ করে প্রত্যাখ্যান করুন এবং এই প্রি-ডিফাইন্ড উত্তরগুলির একটি এসএমএস পাঠান।</string>
+    <string name="add_response">দ্রুত প্রতিক্রিয়া যোগ করুন</string>
+    <string name="edit_response">দ্রুত প্রতিক্রিয়া সম্পাদনা করুন</string>
+    <string name="default_quick_responses_1">এখন কথা বলতে পারছি না। কী ব্যাপার?</string>
+    <string name="default_quick_responses_2">আমি আপনাকে এখুনি কল ব্যাক করছি।</string>
+    <string name="default_quick_responses_3">আপনাকে পরে কল করব।</string>
+    <string name="default_quick_responses_4">এখন কথা বলতে পারছি না। পরে কল করবেন?</string>
+    <string name="write_your_own">আপনার নিজেরটি লিখুন…</string>
+    <string name="type_message">একটি বার্তা টাইপ করুন</string>
+    <string name="canned_responses">প্রি-ডিফাইন্ড উত্তর (%s)</string>
+    <string name="no_quick_responses_configured">কোনো দ্রুত প্রতিক্রিয়া কনফিগার করা হয়নি</string>
+    <string name="reset_to_defaults">ডিফল্টে পুনরুদ্ধার করুন</string>
+    <string name="reset_to_defaults_description">মূল প্রি-ডিফাইন্ড দ্রুত প্রতিক্রিয়াগুলি পুনরুদ্ধার করবেন?</string>
+    <string name="decline_call_and_reply_to">কল প্রত্যাখ্যান করুন এবং %s-কে উত্তর দিন</string>
+    <string name="send">পাঠান</string>
+
+    <string name="sound_and_vibration">শব্দ এবং কম্পন (Sound &amp; vibration)</string>
+    <string name="sound_and_vibration_subtitle">রিংটোন, ডায়ালপ্যাড টোন এবং হ্যাপটিক্স</string>
+    <string name="tap_haptics">ট্যাপ হ্যাপটিক্স</string>
+    <string name="enable_tap_haptics">ট্যাপ হ্যাপটিক্স সক্রিয় করুন</string>
+    <string name="haptics_intensity">তীব্রতা</string>
+    <string name="haptics_soft">নরম</string>
+    <string name="haptics_strong">শক্তিশালী</string>
+    <string name="haptics_custom">কাস্টম</string>
+    <string name="preview_haptic">হ্যাপটিক প্রিভিউ</string>
+    <string name="ringtone_settings">রিংটোন সেটিংস</string>
+    <string name="dialpad_tones">ডায়ালপ্যাড টোন</string>
+    <string name="dialpad_tones_subtitle">কী টিপলে ডায়ালপ্যাড সাউন্ড বাজবে</string>
+    <string name="calls">কলসমূহ</string>
+    <string name="vibrate_on_answer">উত্তর দেওয়ার সময় কম্পন</string>
+    <string name="vibrate_on_answer_subtitle">অন্য পক্ষ রিসিভ করলে কম্পন হবে</string>
+    <string name="vibrate_on_hang_up">কল কাটার সময় কম্পন</string>
+    <string name="vibrate_on_hang_up_subtitle">কল শেষ হলে কম্পন হবে</string>
+    <string name="haptics_across_app">পুরো অ্যাপজুড়ে হ্যাপটিক্স</string>
+    <string name="scroll_haptics">স্ক্রোল হ্যাপটিক্স</string>
+    <string name="scroll_haptics_subtitle">অ্যাপে স্ক্রোল করার সময় কম্পন করুন</string>
+    <string name="haptic_interval">হ্যাপটিক ব্যবধান</string>
+    <string name="haptic_interval_value">প্রতি %.1f সেমিতে ১টি</string>
+    <string name="haptic_strength">হ্যাপটিক শক্তি</string>
+
+    <!-- Flash Notification on Call -->
+    <string name="flash_on_call">কলে ফ্ল্যাশ নোটিফিকেশন</string>
+    <string name="flash_on_call_subtitle">ইনকামিং কলে ক্যামেরার ফ্ল্যাশ ফ্ল্যাশ করুন</string>
+    <string name="flash_on_call_mode">ফ্ল্যাশ মোড</string>
+    <string name="flash_mode_always">সবসময়</string>
+    <string name="flash_mode_silent_vibrate">শুধুমাত্র সাইলেন্ট / ভাইব্রেট</string>
+
+    <string name="manage_blocked">ব্লক করা নম্বর পরিচালনা করুন</string>
+    <string name="manage_blocked_subtitle">ব্লক করা কল এবং স্প্যাম পরিচালনা করুন</string>
+    <string name="blocked_numbers">ব্লক করা নম্বরসমূহ</string>
+    <string name="blocked_numbers_system_info">সিস্টেম ব্লকলিস্টের নম্বর থেকে আসা কলগুলি আমাদের অ্যাপে পৌঁছানোর আগেই অ্যান্ড্রয়েড দ্বারা ফিল্টার করা হয়। এই আচরণের উপর আমাদের কোনো নিয়ন্ত্রণ নেই।</string>
+    <string name="blocking_notifications">ব্লকিং নোটিফিকেশন</string>
+    <string name="blocking_notifications_subtitle">ব্লক করা কলের জন্য কম প্রায়োরিটির সতর্কতা দেখান</string>
+    <string name="block_method">ব্লক করার পদ্ধতি</string>
+    <string name="block_method_subtitle">ব্লক করা কলগুলি কীভাবে পরিচালনা করা হয়</string>
+    <string name="decline_automatically">স্বয়ংক্রিয়ভাবে প্রত্যাখ্যান করুন</string>
+    <string name="ring_silently">নীরবে রিং করুন</string>
+    <string name="log_visibility">লগ দৃশ্যমানতা</string>
+    <string name="log_visibility_subtitle">সাম্প্রতিক কলে ব্লক করা কলগুলি দেখান বা লুকান</string>
+    <string name="hide_from_logs">লগ থেকে লুকান</string>
+    <string name="show_in_logs">লগে দেখান</string>
+    <string name="blocked_size">ব্লক করা হয়েছে: %s</string>
+
+    <string name="authentication">প্রমাণীকরণ (Authentication)</string>
+    <string name="authentication_method">প্রমাণীকরণের পদ্ধতি</string>
+    <string name="system_biometrics">সিস্টেম বায়োমেট্রিক্স</string>
+    <string name="system_biometrics_subtitle">ফিঙ্গারপ্রিন্ট, ফেস রিকগনিশন বা ডিভাইস ক্রেডেনশিয়াল</string>
+    <string name="system_biometrics_not_available">এই ডিভাইসে উপলব্ধ নয়</string>
+    <string name="custom_biometrics">কাস্টম বায়োমেট্রিক্স</string>
+    <string name="custom_pin">কাস্টম পিন</string>
+    <string name="custom_password">কাস্টম পাসওয়ার্ড</string>
+    <string name="pin">পিন</string>
+    <string name="pin_subtitle">একটি সাংখ্যিক পিন সেট করুন</string>
+    <string name="password">পাসওয়ার্ড</string>
+    <string name="password_subtitle">একটি কাস্টম আলফানিউমেরিক পাসওয়ার্ড সেট করুন</string>
+    <string name="remove_biometric">বায়োমেট্রিক লক সরান</string>
+    <string name="not_configured">কনফিগার করা হয়নি</string>
+    <string name="lock_app_on_open">খোলার সময় অ্যাপ লক করুন</string>
+    <string name="lock_app_on_open_subtitle">অ্যাপ খোলার সময় প্রমাণীকরণ প্রয়োজন</string>
+    <string name="lock_call_actions">কল অ্যাকশন লক করুন</string>
+    <string name="lock_call_actions_subtitle">ইনকামিং কলের উত্তর দিতে বা প্রত্যাখ্যান করতে প্রমাণীকরণ প্রয়োজন</string>
+    <string name="lock_scope">কল লক স্কোপ</string>
+    <string name="all_calls">সকল কল</string>
+    <string name="all_calls_subtitle">প্রতিটি ইনকামিং কলের জন্য বায়োমেট্রিক্স প্রয়োজন</string>
+    <string name="blacklist">ব্ল্যাকলিস্ট</string>
+    <string name="blacklist_count">যে কন্টাক্টগুলোর উত্তর দিতে প্রমাণীকরণ চালু আছে: %s</string>
+    <string name="blacklist_subtitle">উত্তর দিতে বায়োমেট্রিক্স প্রয়োজন এমন কন্টাক্ট বেছে নিন</string>
+    <string name="whitelist">হোয়াইটলিস্ট</string>
+    <string name="whitelist_count">যে কন্টাক্টগুলোর উত্তর দিতে প্রমাণীকরণ বন্ধ আছে: %s</string>
+    <string name="whitelist_subtitle">বায়োমেট্রিক লক এড়িয়ে চলার জন্য কন্টাক্ট বেছে নিন</string>
+    <string name="select_contacts">যোগাযোগ নির্বাচন করুন</string>
+    <string name="set_pin">পিন সেট করুন</string>
+    <string name="set_pin_subtitle">একটি ৪-সংখ্যার পিন লিখুন</string>
+    <string name="enter_pin">পিন লিখুন</string>
+    <string name="confirm_pin">পিন নিশ্চিত করুন</string>
+    <string name="confirm_pin_subtitle">নিশ্চিত করতে আপনার পিন আবার লিখুন</string>
+    <string name="incorrect_pin">ভুল পিন। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
+    <string name="pin_dont_match">পিন মেলেনি। অনুগ্রহ করে আবার শুরু করুন।</string>
+    <string name="set_password">পাসওয়ার্ড সেট করুন</string>
+    <string name="set_password_subtitle">যেকোনো পাসওয়ার্ড লিখুন। অক্ষর, সংখ্যা এবং বিশেষ চরিত্র অনুমোদিত।</string>
+    <string name="enter_password">পাসওয়ার্ড লিখুন</string>
+    <string name="confirm_password">পাসওয়ার্ড নিশ্চিত করুন</string>
+    <string name="incorrect_password">ভুল পাসওয়ার্ড</string>
+    <string name="incorrect_password_subtitle">পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে</string>
+    <string name="password_dont_match">পাসওয়ার্ড মেলেনি</string>
+    <string name="lock_on_minimize">মিনিমাইজ করার সময় লক করুন</string>
+    <string name="lock_on_minimize_subtitle">এই বিকল্পটি নিষ্ক্রিয় থাকলে, মেমরি থেকে সম্পূর্ণরূপে পরিষ্কার না করা Hore অ্যাপ বন্ধ হবে না</string>
+    <string name="verify_your_identity_to_continue">চালিয়ে যেতে আপনার পরিচয় যাচাই করুন</string>
+    <string name="verify_your_identity_to_access_call">এই কলটি অ্যাক্সেস করতে আপনার পরিচয় যাচাই করুন</string>
+    <string name="lock_timeout">লক টাইমআউট</string>
+    <string name="immediately_on_exit">বের হওয়ার সাথে সাথে</string>
+    <string name="after_1_minute">১ মিনিট পর</string>
+    <string name="after_5_minutes">৫ মিনিট পর</string>
+    <string name="after_15_minutes">১৫ মিনিট পর</string>
+    <string name="after_30_minutes">৩০ মিনিট পর</string>
+
+    <string name="manage_contacts">যোগাযোগ পরিচালনা করুন</string>
+    <string name="manage_contacts_subtitle">প্রাইভেট কন্টাক্ট, প্রদর্শনের অ্যাকাউন্ট এবং তালিকা পরিষ্কার করুন</string>
+    <string name="display">প্রদর্শন</string>
+    <string name="sort_by">সাজানোর ক্রম</string>
+    <string name="name_format">নামের বিন্যাস</string>
+    <string name="first_name_first">প্রথমে নাম</string>
+    <string name="last_name_first">প্রথমে পদবী</string>
+    <string name="merge_and_fix">একত্র করুন এবং ঠিক করুন</string>
+    <string name="standardize">স্ট্যান্ডার্ডাইজ করুন</string>
+    <string name="standardize_phone_numbers">ফোন নম্বর স্ট্যান্ডার্ডাইজ করুন</string>
+    <string name="standardize_phone_numbers_subtitle">ফোন নম্বর থেকে স্পেস এবং বিশেষ অক্ষর সরান</string>
+    <string name="total_contacts">মোট যোগাযোগ</string>
+    <string name="contacts_with_changes">পরিবর্তনসহ যোগাযোগ</string>
+    <string name="numbers_to_standardize">স্ট্যান্ডার্ডাইজ করার নম্বরসমূহ</string>
+    <string name="all_numbers_are_already_standardized">✅ সমস্ত নম্বর ইতিমধ্যে স্ট্যান্ডার্ডাইজ করা হয়েছে!</string>
+    <string name="examples_of_changes">পরিবর্তনের উদাহরণ:</string>
+    <string name="and_more">এবং আরও %s…</string>
+
+    <string name="contacts_trash_title">ট্র্যাশ বিন</string>
+    <string name="contacts_trash_empty_title">ট্র্যাশ খালি আছে</string>
+    <string name="contacts_trash_empty_desc">ট্র্যাশ চালু থাকা অবস্থায় মুছে ফেলা যোগাযোগগুলি স্থায়ীভাবে মুছে যাওয়ার আগে ৩০ দিন এখানে থাকবে।</string>
+    <string name="contacts_trash_header_hint">ট্র্যাশে থাকা আইটেমগুলি ৩০ দিন পর স্থায়ীভাবে মুছে ফেলা হয়</string>
+    <string name="contacts_trash_restore_action">পুনরুদ্ধার করুন</string>
+    <string name="contacts_trash_delete_action">স্থায়ীভাবে মুছে ফেলুন</string>
+    <string name="contacts_trash_delete_action_subtitle">«%1$s» স্থায়ীভাবে মুছে ফেলবেন? এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।</string>
+    <string name="contacts_trash_empty_all">ট্র্যাশ খালি করুন</string>
+    <string name="contacts_trash_empty_all_confirm_title">ট্র্যাশ খালি করবেন?</string>
+    <string name="contacts_trash_empty_all_confirm_msg">ট্র্যাশের সমস্ত %1$dটি যোগাযোগ স্থায়ীভাবে মুছে ফেলা হবে। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।</string>
+    <string name="contacts_trash_restored_toast">%1$s পুনরুদ্ধার করা হয়েছে</string>
+    <string name="contacts_trash_days_left">%1$ দিন বাকি আছে</string>
+    <string name="settings_contacts_trash_title">মুছে ফেলা যোগাযোগের জন্য ট্র্যাশ</string>
+    <string name="settings_contacts_trash_supporting">স্থায়ীভাবে মুছে ফেলার আগে মুছে ফেলা যোগাযোগগুলি ৩০ দিন ট্র্যাশে রাখুন</string>
+    <string name="settings_contacts_trash_view_supporting">মুছে ফেলা যোগাযোগ দেখুন এবং পুনরুদ্ধার করুন (ট্র্যাশে %1$dটি আছে)</string>
+    <string name="trash_contact">ট্র্যাশে পাঠান</string>
+    <string name="trash_contact_subtitle">এই যোগাযোগটি ট্র্যাশে পাঠাবেন? এটি ৩০ দিনের মধ্যে পুনরুদ্ধার করা যেতে পারে।</string>
+    <string name="trash_contacts_subtitle">নির্বাচিত %sটি যোগাযোগ ট্র্যাশে পাঠাবেন? এগুলি ৩০ দিনের মধ্যে পুনরুদ্ধার করা যেতে পারে।</string>
+
+    <string name="merging_contacts">যোগাযোগ একত্রিত করুন</string>
+    <string name="merging_contacts_subtitle">ডুপ্লিকেট যোগাযোগ খুঁজুন এবং একত্রিত করুন</string>
+    <string name="merging_contacts_description">একত্রিত যোগাযোগগুলি হলো বিভিন্ন অ্যাকাউন্ট থেকে একাধিক এন্ট্রি যা একটিতে লিঙ্ক করা হয়েছে। আপনি প্রতিটি উৎস আলাদাভাবে সম্পাদনা করতে পারেন বা আনলিংক করতে পারেন।</string>
+    <string name="no_duplicates_found">কোনো ডুপ্লিকেট পাওয়া যায়নি</string>
+    <string name="duplicates_in">এতে ডুপ্লিকেট রয়েছে: %s</string>
+    <string name="merge_duplicates">ডুপ্লিকেট একত্রিত করুন (%s)</string>
+
+    <string name="unmerging_contacts">যোগাযোগ আনলিংক করুন</string>
+    <string name="unmerging_contacts_subtitle">একত্রিত যোগাযোগ খুঁজুন এবং আনলিংক করুন</string>
+    <string name="unmerging_contacts_description">যোগাযোগের তথ্য একাধিক উৎস থেকে আসে। সম্পাদনা করতে একটি বেছে নিন, অথবা আলাদা যোগাযোগ হিসেবে রাখতে সব আনলিংক করুন।</string>
+    <string name="no_merged_contacts_found">কোনো একত্রিত যোগাযোগ পাওয়া যায়নি</string>
+    <string name="merged_from_sources">%sটি উৎস থেকে একত্রিত</string>
+    <string name="unlink">আনলিংক</string>
+    <string name="warning_cannot_be_undone">⚠️ এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।</string>
+
+    <string name="managing_contact_sources">যোগাযোগের উৎস পরিচালনা করুন</string>
+    <string name="managing_contact_sources_subtitle">আপনার তালিকায় কোন অ্যাকাউন্টগুলি দেখাতে হবে তা বেছে নিন</string>
+    <string name="managing_contact_sources_description">আপনার যোগাযোগের তালিকায় কোন অ্যাকাউন্টগুলি দৃশ্যমান হওয়া উচিত তা নির্বাচন করুন। কোনো অ্যাকাউন্ট আনচেক করলে তার যোগাযোগগুলি লুকানো থাকবে, কিন্তু মুছে ফেলা হবে না।</string>
+    <string name="contact_sources">যোগাযোগের উৎসসমূহ</string>
+    <string name="contacts_stored_on_app">অ্যাপে সংরক্ষিত যোগাযোগ</string>
+    <string name="contacts_stored_on_device">ডিভাইসে সংরক্ষিত যোগাযোগ</string>
+
+    <string name="private_contacts">প্রাইভেট যোগাযোগ</string>
+    <string name="private_contacts_subtitle">আপনার এনক্রিপ্ট করা স্থানীয় যোগাযোগগুলি পরিচালনা করুন</string>
+
+    <!-- Voicemail -->
+    <string name="settings_voicemail_title">ভয়েসমেইল</string>
+
+    <!-- Call -->
+    <string name="call_failed_airplane_mode">এয়ারপ্লেন মোড চালু রেখে কল করা যাবে না</string>
+    <string name="call_failed_no_network">কল ব্যর্থ হয়েছে: সেলুলার নেটওয়ার্ক উপলব্ধ নয়</string>
+    <string name="call_failed_restricted">কল ব্যর্থ হয়েছে: কল সীমাবদ্ধ</string>
+    <string name="call_failed_generic">কল সম্পন্ন করা যায়নি</string>
+    <string name="no_valid_app_found">কোনো বৈধ অ্যাপ পাওয়া যায়নি</string>
+    <string name="video_call">ভিডিও কল</string>
+    <string name="voice_call">ভয়েস কল</string>
+    <string name="call">কল</string>
+    <string name="incoming">ইনকামিং</string>
+    <string name="outgoing">আউটগোয়িং</string>
+    <string name="missed">মিসড</string>
+    <string name="rejected">প্রত্যাখ্যাত</string>
+    <string name="blocked">ব্লক করা</string>
+    <string name="answer">উত্তর দিন</string>
+    <string name="decline">প্রত্যাখ্যান করুন</string>
+    <string name="answer_and_decline">অন্য কল শেষ করে উত্তর দিন</string>
+    <string name="end_call">কল শেষ করুন</string>
+    <string name="back_to_call">কলে ফিরে যান</string>
+    <string name="keypad">কিপ্যাড</string>
+    <string name="mute">মিউট করুন</string>
+    <string name="unmute">আনমিউট করুন</string>
+    <string name="audio_route_speaker">স্পিকার</string>
+    <string name="audio_route_handset">ফোন</string>
+    <string name="audio_route_headset">হেডসেট</string>
+    <string name="audio_route_bluetooth">ব্লুটুথ</string>
+    <string name="audio_route_bluetooth_short">বিটি</string>
+    <string name="audio_output_title">অডিও আউটপুট</string>
+    <string name="add_call">কল যোগ করুন</string>
+    <string name="resume">পুনরায় শুরু করুন</string>
+    <string name="swap">অদলবদল করুন</string>
+    <string name="merge">একত্র করুন</string>
+    <string name="manage">পরিচালনা করুন</string>
+    <string name="conference">কনফারেন্স</string>
+    <string name="more">আরও</string>
+    <string name="hold">হোল্ড</string>
+    <string name="call_status_on_hold">হোল্ডে আছে</string>
+    <string name="call_status_ended">কল শেষ হয়েছে</string>
+    <string name="call_status_calling">কল করা হচ্ছে…</string>
+    <string name="call_status_incoming">ইনকামিং কল</string>
+    <string name="call_status_connecting">সংযুক্ত হচ্ছে…</string>
+    <string name="slide_to_answer">উত্তর দিতে স্লাইড করুন</string>
+    <string name="swipe_up_to_answer">উত্তর দিতে উপরে সোয়াইপ করুন</string>
+    <string name="swipe_down_to_reject">প্রত্যাখ্যান করতে নিচে সোয়াইপ করুন</string>
+
+    <!-- Recents -->
+    <string name="recents">সাম্প্রতিক</string>
+    <string name="home_tab">হোম</string>
+    <string name="call_history">কলের ইতিহাস</string>
+    <string name="history_with">%s-এর সাথে ইতিহাস</string>
+    <string name="no_call_history_found">কোনো কলের ইতিহাস পাওয়া যায়নি</string>
+    <string name="delete_call_logs">কল লগ মুছে ফেলুন</string>
+    <string name="delete_call_logs_selected">আপনি কি নিশ্চিত যে নির্বাচিত %sটি কল লগ মুছে ফেলতে চান?</string>
+    <string name="deleted_from_call_log">কল লগ থেকে মুছে ফেলা হয়েছে</string>
+    <string name="could_not_delete">মুছে ফেলা যায়নি</string>
+    <string name="clear_all_filtered_logs">সমস্ত ফিল্টার করা লগ সাফ করুন</string>
+    <string name="clear_all_filtered_logs_selected">এটি প্রদর্শিত সমস্ত কলের ইতিহাস মুছে ফেলবে। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।</string>
+
+    <string name="action_block">ব্লক করুন</string>
+    <string name="action_unblock">আনব্লক করুন</string>
+    <string name="action_block_number">একটি নম্বর ব্লক করুন</string>
+    <string name="action_unblock_number">একটি নম্বর আনব্লক করুন</string>
+    <string name="contact_block">যোগাযোগ ব্লক করুন</string>
+    <string name="contact_block_supporting">এই যোগাযোগ থেকে ইনকামিং কল এবং বার্তা ব্লক করুন</string>
+    <string name="contact_unblock">যোগাযোগ আনব্লক করুন</string>
+    <string name="contact_unblock_supporting">এই যোগাযোগ থেকে কল এবং বার্তা আবার অনুমতি দিন</string>
+    <string name="call_log_block_title">নম্বরে ব্লক করবেন?</string>
+    <string name="call_log_block_message">নির্বাচিত %1$dটি এন্ট্রির কলগুলি ব্লক করা হবে।</string>
+
+    <string name="contact_call_background">কল ব্যাকগ্রাউন্ড</string>
+    <string name="contact_call_background_set">কাস্টম ছবি নির্বাচিত</string>
+    <string name="contact_call_background_none">ডিফল্ট ব্যাকগ্রাউন্ড ব্যবহার করুন</string>
+    <string name="contact_call_background_choose">একটি ছবি বেছে নিন</string>
+    <string name="contact_call_background_change">ছবি পরিবর্তন করুন</string>
+    <string name="contact_call_background_remove">ব্যাকগ্রাউন্ড সরান</string>
+    <string name="contact_call_background_saving">ছবি সংরক্ষণ করা হচ্ছে…</string>
+    <string name="contact_call_background_error">এই ছবি সংরক্ষণ করা যায়নি</string>
+    <string name="contact_call_background_no_target">প্রথমে নম্বরটি যোগাযোগ হিসেবে সংরক্ষণ করুন</string>
+    <string name="contact_call_background_preview">কল ব্যাকগ্রাউন্ড প্রিভিউ</string>
+    <string name="settings_call_default_background">ডিফল্ট কল ব্যাকগ্রাউন্ড</string>
+    <string name="settings_call_default_background_set">প্রতিটি কলে একটি কাস্টম ছবি প্রদর্শিত হয়</string>
+    <string name="settings_call_default_background_none">নির্ধারিত নয় — কলগুলি অ্যাপ থিম ব্যবহার করে</string>
+    <string name="settings_interface_hide_avatar_with_bg">ব্যাকগ্রাউন্ড উপলব্ধ থাকলে প্রোফাইল ছবি লুকান</string>
+    <string name="settings_interface_hide_avatar_with_bg_supporting">কল ব্যাকগ্রাউন্ড সক্রিয় থাকলে কল স্ক্রিনে কলারের অ্যাভাটার লুকান</string>
+
+    <!-- Shortcuts -->
+    <string name="add_to_home_screen">হোম স্ক্রিনে যোগ করুন</string>
+    <string name="shortcut_view_contact_subtitle">শর্টকাটটি এই যোগাযোগের তথ্য পৃষ্ঠা খোলে</string>
+    <string name="shortcut_call_subtitle">শর্টকাটটি অবিলম্বে এই যোগাযোগে কল করে</string>
+    <string name="shortcut_save_number">প্রথমে এই নম্বরটি আপনার যোগাযোগে সংরক্ষণ করুন</string>
+
+    <!-- Contacts -->
+    <string name="contacts">যোগাযোগ (Contacts)</string>
+    <string name="view_contact">যোগাযোগ দেখুন</string>
+    <string name="view_contacts">যোগাযোগসমূহ দেখুন</string>
+    <string name="contacts_settings">যোগাযোগ সেটিংস</string>
+    <string name="create_contact">যোগাযোগ তৈরি করুন</string>
+    <string name="add_contact">যোগাযোগ যোগ করুন</string>
+    <string name="add_to_contact">যোগাযোগে যোগ করুন</string>
+    <string name="edit_contact">যোগাযোগ সম্পাদনা করুন</string>
+    <string name="contact_info">যোগাযোগের তথ্য</string>
+    <string name="favorites">পছন্দের তালিকা (Favorites)</string>
+    <string name="message">মেসেজ</string>
+    <string name="video">ভিডিও</string>
+    <string name="email">ইমেল</string>
+    <string name="default_number">ডিফল্ট</string>
+    <string name="recent_number">সাম্প্রতিক</string>
+    <string name="recent_activity">সাম্প্রতিক কার্যকলাপ</string>
+    <string name="add_to_favorites">পছন্দের তালিকায় যোগ করুন</string>
+    <string name="remove_from_favorites">পছন্দের তালিকা থেকে সরান</string>
+    <string name="no_favorites_yet">এখনো কোনো পছন্দের যোগাযোগ নেই</string>
+    <string name="no_favorites_yet_subtitle">এখানে যোগ করতে একটি যোগাযোগে স্টার মার্ক দিন</string>
+    <string name="move_contact">যোগাযোগ সরান</string>
+    <string name="move_to_another_account">অন্য অ্যাকাউন্টে সরান</string>
+    <string name="move_to_device_storage">ডিভাইস স্টোরেজে সরান</string>
+    <string name="contact_moved_successfully">যোগাযোগ সফলভাবে সরানো হয়েছে</string>
+    <string name="save_to_account">অ্যাকাউন্টে সংরক্ষণ করুন</string>
+    <string name="show_full_history">সম্পূর্ণ ইতিহাস দেখান</string>
+    <string name="contact_qr">যোগাযোগ QR</string>
+    <string name="tap_phone_to_share_NFC">NFC এর মাধ্যমে শেয়ার করতে ফোনে ট্যাপ করুন</string>
+    <string name="nfc_is_turned_off">NFC বন্ধ আছে</string>
+    <string name="phone_number">ফোন নম্বর</string>
+    <string name="name">নাম</string>
+    <string name="prefix">উপসর্গ (Prefix)</string>
+    <string name="prefix_description">জনাব, ডা., ইত্যাদি।</string>
+    <string name="first_name">প্রথম নাম</string>
+    <string name="middle_name">মধ্য নাম</string>
+    <string name="middle_name_description">মধ্য নাম বা আদ্যক্ষর</string>
+    <string name="last_name">শেষ নাম (পদবী)</string>
+    <string name="suffix">প্রত্যয় (Suffix)</string>
+    <string name="suffix_description">Jr., Sr., III, ইত্যাদি।</string>
+    <string name="nickname">ডাকনাম</string>
+    <string name="nickname_description">ছোট নাম বা ডাকনাম</string>
+    <string name="company">কোম্পানি</string>
+    <string name="job_title">পদবি</string>
+    <string name="job_title_description">কোম্পানিতে পদ</string>
+    <string name="add_field">ফিল্ড যোগ করুন</string>
+    <string name="add_phone">ফোন যোগ করুন</string>
+    <string name="add_email">ইমেল যোগ করুন</string>
+    <string name="add_event">ইভেন্ট যোগ করুন</string>
+    <string name="add_address">ঠিকানা যোগ করুন</string>
+    <string name="add_note">নোট যোগ করুন</string>
+    <string name="add_photo">ছবি যোগ করুন</string>
+    <string name="contact_ringtone">যোগাযোগের রিংটোন</string>
+    <string name="unsaved_changes">অসংরক্ষিত পরিবর্তনসমূহ</string>
+    <string name="unsaved_changes_subtitle">বের হওয়ার আগে কি আপনার পরিবর্তনগুলি সংরক্ষণ করতে চান?</string>
+    <string name="ringtone_custom">কাস্টম</string>
+    <plurals name="contacts_count">
+        <item quantity="one">%dটি যোগাযোগ</item>
+        <item quantity="other">%dটি যোগাযোগ</item>
+    </plurals>
+    <plurals name="add_to_favorites_confirmation">
+        <item quantity="one">%dটি যোগাযোগ পছন্দের তালিকায় যোগ করবেন?</item>
+        <item quantity="other">%dটি যোগাযোগ পছন্দের তালিকায় যোগ করবেন?</item>
+    </plurals>
+    <plurals name="remove_from_favorites_confirmation">
+        <item quantity="one">%dটি যোগাযোগ পছন্দের তালিকা থেকে সরাবেন?</item>
+        <item quantity="other">%dটি যোগাযোগ পছন্দের তালিকা থেকে সরাবেন?</item>
+    </plurals>
+
+    <!-- Permission -->
+    <string name="allow">অনুমতি দিন</string>
+    <string name="call_history_permission">সাম্প্রতিক কার্যকলাপ এবং মিসড কল দেখাতে স্মার্ট ডায়ালের আপনার কল লগের অ্যাক্সেস প্রয়োজন।</string>
+    <string name="contacts_permission">যোগাযোগের অনুমতি প্রয়োজন</string>
+    <string name="contacts_permission_description">আপনার যোগাযোগ দেখতে, যোগাযোগের অ্যাক্সেসের অনুমতি দিন।</string>
+    <string name="search_contacts_permission_description">আপনার যোগাযোগ খুঁজতে এবং ইনকামিং কল সনাক্ত করতে, যোগাযোগের অ্যাক্সেসের অনুমতি দিন।</string>
+
+    <!-- Default Dialer -->
+    <string name="default_phone_number_cleared">ডিফল্ট ফোন নম্বর সাফ করা হয়েছে</string>
+    <string name="set_as_default">ডিফল্ট হিসেবে সেট করুন</string>
+    <string name="clear_default">ডিফল্ট সাফ করুন</string>
+    <string name="default_phone_set">%s ডিফল্ট হিসেবে সেট করা হয়েছে</string>
+    <string name="default_dialer_title">স্মার্ট ডায়ালার ডিফল্ট করুন</string>
+    <string name="default_dialer_subtitle">স্মার্ট ডায়ালার শুধুমাত্র তখনই কল শুরু এবং গ্রহণ করতে পারে যদি এটি আপনার ডিফল্ট ফোন অ্যাপ হয়</string>
+    <string name="default_dialer_warning">এই অনুমতি ছাড়া অ্যাপটি কাজ করতে পারে না। অনুগ্রহ করে আবার চেষ্টা করুন।</string>
+
+    <!-- Call notes -->
+    <string name="notes">নোটসমূহ</string>
+    <string name="notes_contact">মন্তব্য</string>
+    <string name="call_notes">কল নোট</string>
+    <string name="about_call_notes">কল নোট সম্পর্কে</string>
+    <string name="about_call_notes_subtitle">কল চলাকালীন আপনার করা দ্রুত নোট। এগুলি অ্যাপের ফাইলে স্থানীয়ভাবে সংরক্ষণ করা হয়, ফোন নম্বরের সাথে লিঙ্ক করা থাকে (গুগল কন্টাক্টস বা অন্য কিছুর সাথে সিঙ্ক হয় না)। প্রতিটি নম্বরের নিজস্ব ব্যক্তিগত নোট থাকে, যা শুধুমাত্র অ্যাপের মধ্যে যোগাযোগের বিবরণে কল লগ থেকে বা \"কল নোট\" ট্যাব থেকে অ্যাক্সেস করা যেতে পারে।</string>
+    <string name="type_your_note">আপনার নোট টাইপ করুন…</string>
+    <string name="no_notes_yet">এখনো কোনো নোট নেই</string>
+    <string name="no_notes_yet_subtitle">কলের সময় তৈরি নোটগুলি এখানে প্রদর্শিত হবে</string>
+    <string name="delete_notes">নোট মুছে ফেলুন</string>
+    <string name="delete_notes_subtitle">আপনি কি নিশ্চিত যে নির্বাচিত %sটি নোট মুছে ফেলতে চান?</string>
+    <string name="delete_note">নোট মুছে ফেলুন</string>
+    <string name="delete_note_subtitle">%s-এর জন্য নোট মুছে ফেলবেন?"</string>
+
+    <!-- Times -->
+    <string name="just_now">এইমাত্র</string>
+    <string name="yesterday">গতকাল</string>
+    <string name="today">আজ</string>
+    <string name="seconds_letter">%dসে</string>
+    <string name="minutes_letter">%dমি</string>
+    <string name="hours_letter">%dঘ</string>
+    <string name="days_letter">%dদি</string>
+
+    <!-- Phone numbers -->
+    <string name="no_label">কোনো লেবেল নেই</string>
+    <string name="custom_label">কাস্টম লেবেল</string>
+    <string name="change_label">লেবেল পরিবর্তন করুন</string>
+    <string name="mobile">মোবাইল</string>
+    <string name="main_number">প্রধান</string>
+    <string name="home">বাসা</string>
+    <string name="work">অফিস</string>
+    <string name="work_fax">অফিস ফ্যাক্স</string>
+    <string name="home_fax">বাসার ফ্যাক্স</string>
+    <string name="pager">পেজার</string>
+    <string name="other">অন্যান্য</string>
+    <string name="send_whatsapp">হোয়াটসঅ্যাপে পাঠান</string>
+
+    <!-- Events -->
+    <string name="other_information">অন্যান্য তথ্য</string>
+    <string name="birthday">জন্মদিন</string>
+    <string name="anniversary">বিবাহবার্ষিকী</string>
+
+    <!-- Dialpad -->
+    <string name="add_pause">২ সেকেন্ডের বিরতি যোগ করুন</string>
+    <string name="add_wait">অপেক্ষা যোগ করুন</string>
+    <string name="suggested">প্রস্তাবিত</string>
+
+    <!-- Onboarding -->
+    <string name="skip">এড়িয়ে যান</string>
+    <string name="page_title_one">ডিজাইন দ্বারা গোপনীয়</string>
+    <string name="page_subtitle_one">আপনার যোগাযোগগুলি আপনার ডিভাইসেই থাকে। আমরা কখনোই আপনার ডেটা কারও সাথে আপলোড, ট্র্যাক বা শেয়ার করি না। কখনই না।</string>
+    <string name="page_title_two">ওপেন সোর্স এবং স্বচ্ছ</string>
+    <string name="page_subtitle_two">শূন্য টেলিমিট্রি। শূন্য বিজ্ঞাপন। শূন্য ট্র্যাকিং। আপনার যোগাযোগের উপর সম্পূর্ণ নিয়ন্ত্রণ।</string>
+    <string name="page_title_three">দ্রুত এবং নির্ভরযোগ্য</string>
+    <string name="page_subtitle_three">তক্ষনিক T9 সার্চ, মসৃণ অ্যানিমেশন এবং অত্যন্ত দ্রুত কলিং। শুধুমাত্র একটি ফোন অ্যাপ যা কাজ করে।</string>
+    <string name="page_title_warning">উন্নয়নধীন</string>
+    <string name="page_subtitle_warning">এই অ্যাপটি এখনও উন্নয়নাধীন। কিছু ফিচার প্রত্যাశিতভাবে কাজ নাও করতে পারে। সাবধানে ব্যবহার করুন এবং কোনো সমস্যা পেলে রিপোর্ট করুন।</string>
+
+    <!-- Call notifications (CallService) -->
+    <string name="notif_channel_outgoing_calls">আউটগোয়িং কল</string>
+    <string name="notif_channel_incoming_calls">ইনকামিং কল</string>
+    <string name="notif_channel_fullscreen_incoming_calls">ইনকামিং কল (ফুল স্ক্রিন)</string>
+    <string name="notif_channel_missed_calls">মিসড কল</string>
+    <string name="notif_blocked_call_title">কল ব্লক করা হয়েছে</string>
+    <string name="notif_blocked_call_text">%1$s থেকে কল ব্লক করা হয়েছে</string>
+    <string name="notif_missed_call_title">মিসড কল</string>
+    <string name="notif_missed_call_text">%2$s-এ %1$s থেকে মিসড কল</string>
+    <string name="notif_via_sim">%1$s এর মাধ্যমে</string>
+    <string name="notif_active_call">সক্রিয় কল</string>
+    <string name="notif_call_back">কল ব্যাক করুন</string>
+
+    <!-- Backup & Restore -->
+    <string name="backup_and_restore">ব্যাকআপ এবং পুনরুদ্ধার</string>
+    <string name="restoring_backup">ব্যাকআপ পুনরুদ্ধার করা হচ্ছে…</string>
+    <string name="backup_created">ব্যাকআপ তৈরি করা হয়েছে</string>
+    <string name="backup_created_description">ব্যাকআপ সংরক্ষণ করা হয়েছে: %s</string>
+    <string name="restore_complete">পুনরুদ্ধার সম্পন্ন হয়েছে</string>
+    <string name="restore_complete_description">আপনার ডেটা সফলভাবে পুনরুদ্ধার করা হয়েছে। অ্যাপটি পুনরায় চালু করুন।</string>
+    <string name="operation_failed">অপারেশন ব্যর্থ হয়েছে</string>
+    <string name="create_backup">ব্যাকআপ তৈরি করুন</string>
+    <string name="create_backup_subtitle">অ্যাপ কনফিগারেশন এবং কল নোট সংরক্ষণ করুন</string>
+    <string name="failed_to_create_backup">ব্যাকআপ তৈরি করতে ব্যর্থ হয়েছে</string>
+    <string name="restore_backup">ব্যাকআপ পুনরুদ্ধার করুন</string>
+    <string name="restore_backup_subtitle">অ্যাপ কনফিগারেশন এবং কল নোট পুনরুদ্ধার করুন</string>
+
+    <!-- Pocket Mode -->
+    <string name="pocket_mode_active">পকেট মোড সক্রিয়</string>
+    <string name="pocket_mode_active_description">পকেটে থাকাকালীন দুর্ঘটনাজনিত স্পর্শ এড়াতে স্ক্রিন স্পর্শ লক করা হয়েছে।</string>
+    <string name="pocket_mode_dismiss">টাচ সুরক্ষা বন্ধ করুন</string>
+
+    <!-- Call Analytics -->
+    <string name="settings_call_analytics_title">কল অ্যানালিটিক্স</string>
+    <string name="settings_call_analytics_supporting">কল মেট্রিক্স, কথা বলার সময়ের পরিসংখ্যান, পিক সময় এবং ঘন ঘন যোগাযোগ করা ব্যক্তির তথ্য ট্র্যাক করুন</string>
+    <string name="call_analytics_disabled_title">কল অ্যানালিটিক্স নিষ্ক্রিয়</string>
+    <string name="call_analytics_disabled_desc">কল অ্যানালিটিক্স এবং কল টাইম ট্র্যাকিং বর্তমানে নিষ্ক্রিয় আছে। কথা বলার সময়, পিক সময় এবং কন্টাক্ট ইনফো গণনা করতে এটি সক্রিয় করুন।</string>
+    <string name="call_analytics_enable_action">অ্যানালিটিক্স সক্রিয় করুন</string>
+    <string name="this_week">এই সপ্তাহ</string>
+    <string name="this_month">এই মাস</string>
+    <string name="all_time">সর্বকালের</string>
+    <string name="total_talk_time">মোট কথা বলার সময়</string>
+    <string name="total_calls">মোট কল</string>
+    <string name="avg_duration">গড় স্থায়িত্ব</string>
+    <string name="call_volume">কল ভলিউম</string>
+    <string name="call_breakdown">কল বিবরণী</string>
+    <string name="sim_usage_breakdown">সিম ব্যবহার</string>
+    <string name="most_talked_persons">যাদের সাথে বেশি কথা বলা হয়েছে</string>
+    <string name="no_call_records_this_period">এই সময়ের জন্য কোনো কল রেকর্ড পাওয়া যায়নি</string>
+    <string name="total_calls_in_number">%1$sটি কল (রিসিভ: %2$s, আউট: %3$s, মিসড: %4$s)</string>
+
+    <!-- Busy Mode -->
+    <string name="busy_mode">ব্যস্ত মোড</string>
+    <string name="busy_mode_subtitle">স্বয়ংক্রিয়ভাবে কল প্রত্যাখ্যান করুন এবং স্বয়ংক্রিয় SMS উত্তর পাঠান। কুইক সেটিংস থেকে টগল করা যায়</string>
+    <string name="busy_mode_message">অটো-রিপ্লাই বার্তা</string>
+    <string name="busy_mode_message_subtitle">ব্যস্ত মোড দ্বারা কল প্রত্যাখ্যান করা হলে স্বয়ংক্রিয়ভাবে পাঠানো বার্তা</string>
+    <string name="busy_mode_default_message">আমি এখন ব্যস্ত আছি, পরে কল করুন</string>
+    <string name="busy_mode_call_rejected_toast">কল প্রত্যাখ্যান করা হয়েছে (ব্যস্ত মোড)।</string>
+    <string name="busy_mode_call_rejected_sent_sms_toast">কল প্রত্যাখ্যান করা হয়েছে (ব্যস্ত মোড)। SMS পাঠানো হয়েছে।</string>
+    <string name="edit_busy_message">ব্যস্ত মোডের বার্তা সম্পাদনা করুন</string>
+    <string name="busy_mode_permission_required">অ্যাপ সেটিংসে SMS পাঠানোর অনুমতি দিন</string>
+
+    <!-- Avatar Cropping -->
+    <string name="crop_avatar_title">ক্রপ এবং ঘোরান</string>
+    <string name="action_crop">ক্রপ করুন</string>
+    <string name="action_rotate">ঘোরান</string>
+
+    <!-- Swipe Actions and Tap -->
+    <string name="settings_swipe_and_taps_title">সোয়াইপ এবং ট্যাপ</string>
+    <string name="settings_swipe_and_taps_supporting">সোয়াইপ বা ট্যাপ করলে কী ঘটে তা নির্ধারণ করুন</string>
+    <string name="settings_swipe_actions_enable">সোয়াইপ জেসচার সক্রিয় করুন</string>
+    <string name="settings_swipe_actions_enable_supporting">অ্যাকশন ট্রিগার করতে তালিকার আইটেমগুলিতে বাম বা ডানে সোয়াইপ করুন</string>
+    <string name="settings_swipe_right_action">ডানদিকে সোয়াইপ অ্যাকশন</string>
+    <string name="settings_swipe_right_action_second">দ্বিতীয় ডানদিকে সোয়াইপ অ্যাকশন</string>
+    <string name="settings_swipe_left_action">বামদিকে সোয়াইপ অ্যাকশন</string>
+    <string name="settings_swipe_left_action_second">দ্বিতীয় বামদিকে সোয়াইপ অ্যাকশন</string>
+    <string name="settings_swipe_actions_reset">সোয়াইপ অ্যাকশন রিসেট করুন</string>
+    <string name="swipe_action_none">কোনোটিই নয়</string>
+    <string name="swipe_action_copy_number">নম্বর কপি করুন</string>
+</resources>

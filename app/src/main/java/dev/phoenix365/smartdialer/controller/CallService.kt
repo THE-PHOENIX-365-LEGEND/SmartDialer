@@ -180,10 +180,15 @@ class CallService : InCallService() {
         val details = call.details
         val number = details?.handle?.schemeSpecificPart ?: ""
 
-        // Auto Redial on Busy
-        if (cause?.code == DisconnectCause.BUSY &&
-            preferenceManager.getBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, false)) {
+        val wasNeverConnected = details?.connectTimeMillis == 0L
+        val isIncoming = details?.callDirection == Call.Details.DIRECTION_INCOMING
+        val isOutgoing = details?.callDirection == Call.Details.DIRECTION_OUTGOING
 
+        // Auto Redial on Busy or Unsuccessful Outgoing Call
+        val autoRedialEnabled = preferenceManager.getBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, false)
+        val shouldRedial = autoRedialEnabled && isOutgoing && wasNeverConnected
+
+        if (shouldRedial) {
             val maxAttempts = preferenceManager.getInt(PreferenceManager.KEY_REDIAL_ATTEMPTS, 3)
             val delayMs = preferenceManager.getInt(PreferenceManager.KEY_REDIAL_DELAY, 3000).toLong()
 
@@ -199,10 +204,6 @@ class CallService : InCallService() {
                 }
             }
         }
-
-        val wasNeverConnected = details?.connectTimeMillis == 0L
-        val isIncoming = details?.callDirection == Call.Details.DIRECTION_INCOMING
-        val isOutgoing = details?.callDirection == Call.Details.DIRECTION_OUTGOING
 
         if (isOutgoing && wasNeverConnected) {
             val failMessage = when {
