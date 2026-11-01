@@ -1,0 +1,4 @@
+- [x] Rename/Refactor LegacyDatabase to AppDatabase
+- [x] Update CommonModule.kt to use AppDatabase
+- [x] Update ProGuard rules for AppDatabase_Impl
+- [x] Clean and build project to verify compilation

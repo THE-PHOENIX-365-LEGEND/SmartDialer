@@ -1,0 +1,653 @@
+package dev.phoenix365.smartdialer.view.components
+
+import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.content.res.Configuration
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.StarHalf
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.AccountCircle
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckBox
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.bottomBarHeight
+import dev.phoenix365.smartdialer.cardCornerExtraSmall
+import dev.phoenix365.smartdialer.cardSpacedBy
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.controller.ContactsViewModel
+import dev.phoenix365.smartdialer.modal.data.Contact
+import dev.phoenix365.smartdialer.view.theme.MyColors.cardColor
+import dev.phoenix365.smartdialer.view.theme.MyColors.cardColorSelected
+import dev.phoenix365.smartdialer.view.theme.customColors
+import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.phoenix365.smartdialer.controller.util.forceLtr
+import dev.phoenix365.smartdialer.modal.data.getDisplayContactInfo
+import dev.phoenix365.smartdialer.modal.data.getDisplayName
+import dev.phoenix365.smartdialer.view.theme.SmartShapeDefaults
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinActivityViewModel
+
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+fun AZListScroll(
+    contacts: List<Contact>,
+    navigator: DestinationsNavigator,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
+    selectedIds: Set<String> = emptySet(),
+    onToggleSelection: (String) -> Unit = {},
+    grouped: Map<Char, List<Contact>>? = null,
+) {
+    AZListContent(
+        contacts = contacts,
+        navigator = navigator,
+        modifier = modifier,
+        listState = listState,
+        selectedIds = selectedIds,
+        onToggleSelection = onToggleSelection,
+        grouped = grouped,
+    )
+}
+
+@SuppressLint("ConfigurationScreenWidthHeight")
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+fun AZListContent(
+    contacts: List<Contact>,
+    navigator: DestinationsNavigator,
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
+    selectedIds: Set<String> = emptySet(),
+    onToggleSelection: (String) -> Unit = {},
+    grouped: Map<Char, List<Contact>>? = null,
+) {
+    val prefs = koinInject<PreferenceManager>()
+    val settingsState by prefs.settingsChanged.collectAsStateWithLifecycle()
+
+    val favoritesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, false)
+    val contactsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
+    val dialpadEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_DIALPAD, true)
+    val notesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_NOTES, false)
+    val searchEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SEARCH, false)
+    val settingsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SETTINGS, true)
+    val showBottomBar = favoritesEnabled || contactsEnabled || dialpadEnabled ||notesEnabled || searchEnabled || settingsEnabled
+
+    val displayOrder = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0) }
+    val sortOrder = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_CONTACT_SORT_ORDER, 0) }
+    val cardCornerExtraLarge  = prefs.getInt(PreferenceManager.KEY_CARD_ROUNDNESS, SmartShapeDefaults.DefaultRoundness).dp
+
+    val finalGrouped = remember(contacts, grouped) {
+        if (grouped != null) return@remember grouped
+
+        val mainGroups = contacts.groupBy {
+            val firstChar =
+                if (sortOrder == 1) it.familyName.ifBlank { it.displayName }.firstOrNull()?.uppercaseChar() ?: '#'
+                else it.givenName.ifBlank { it.displayName }.firstOrNull()?.uppercaseChar() ?: '#'
+            if (firstChar.isLetter()) firstChar else '#'
+        }.toMutableMap()
+
+        val finalMap = linkedMapOf<Char, List<Contact>>()
+
+        mainGroups.keys.filter { it.isLetter() }.sorted().forEach { char ->
+            finalMap[char] = mainGroups[char]!!
+        }
+
+        val hashGroup = mainGroups['#']
+        if (hashGroup != null) finalMap['#'] = hashGroup
+
+        finalMap
+    }
+
+    // Map each letter to its first LazyColumn item index for sidebar jump
+    val alphabetIndices = remember(finalGrouped) {
+        val map = mutableMapOf<Char, Int>()
+        var currentIndex = 0
+        finalGrouped.forEach { (char, group) ->
+            map[char] = currentIndex          // stickyHeader index
+            currentIndex += 1 + group.size   // header + N contact items
+        }
+        map
+    }
+
+    val scope = rememberCoroutineScope()
+    var draggingChar by remember { mutableStateOf<Char?>(null) }
+
+    val scrollingChar by remember {
+        derivedStateOf {
+            val firstVisible = listState.firstVisibleItemIndex
+            alphabetIndices.entries
+                .filter { it.value <= firstVisible }
+                .maxByOrNull { it.value }
+                ?.key ?: alphabetIndices.keys.firstOrNull()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        val configuration = LocalConfiguration.current
+        val screenHeightDp = configuration.screenHeightDp.dp
+        val bottomPadding = screenHeightDp - 340.dp
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 8.dp, bottom = bottomPadding)
+        ) {
+            finalGrouped.forEach { (initial, contactsForChar) ->
+                // ── Letter header ──────────────────────────────────────────
+                stickyHeader(key = "header_$initial", contentType = "letterHeader") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 28.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (initial == '❤') "Favorites" else initial.toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
+
+                // ── One lazy item per contact for smooth scrolling ─────────
+                val selectionMode = selectedIds.isNotEmpty()
+                itemsIndexed(
+                    items = contactsForChar,
+                    key = { _, contact -> "${initial}_${contact.id}" },
+                    contentType = { _, _ -> "contact" }
+                ) { index, contact ->
+                    val isOnly   = contactsForChar.size == 1
+                    val isFirst  = index == 0
+                    val isLast   = index == contactsForChar.lastIndex
+                    val isSelected = selectedIds.contains(contact.id)
+
+                    val shape = when {
+                        isOnly || isSelected -> RoundedCornerShape(cardCornerExtraLarge)
+                        isFirst -> RoundedCornerShape(
+                            topStart = cardCornerExtraLarge, topEnd = cardCornerExtraLarge,
+                            bottomStart = cardCornerExtraSmall, bottomEnd = cardCornerExtraSmall
+                        )
+                        isLast  -> RoundedCornerShape(
+                            topStart = cardCornerExtraSmall, topEnd = cardCornerExtraSmall,
+                            bottomStart = cardCornerExtraLarge, bottomEnd = cardCornerExtraLarge
+                        )
+                        else    -> RoundedCornerShape(cardCornerExtraSmall)
+                    }
+                    val bottomPadding = if (!isLast) cardSpacedBy else 0.dp
+
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        SmartScrollAnimatedItem(delayMs = (index * 25L).coerceAtMost(250L)) {
+                            Surface(
+                                shape = shape,
+                                color = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = bottomPadding)
+                            ) {
+                                ContactListItem(
+                                    contact = contact,
+                                    navigator = navigator,
+                                    selectionMode = selectionMode,
+                                    isSelected = isSelected,
+                                    displayOrder = displayOrder,
+                                    onSelectToggle = { onToggleSelection(contact.id) }
+                                )
+                            }
+                        }
+                    }
+
+                    // Gap between letter groups
+                    if (isLast) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val alphabet = alphabetIndices.keys.toList()
+        if (!isLandscape && alphabet.size > 1) {
+            val pillNav = remember { prefs.getBoolean(PreferenceManager.KEY_PILL_NAV, false) }
+            val paddingBottom = if (pillNav) 0.dp else bottomBarHeight
+            AlphabetSideBar(
+                alphabet = alphabet,
+                selectedChar = draggingChar ?: scrollingChar,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 4.dp, bottom = paddingBottom),
+                onLetterSelected = { char ->
+                    draggingChar = char
+                    val index = alphabetIndices[char] ?: return@AlphabetSideBar
+                    scope.launch { listState.scrollToItem(index) }
+                },
+                onDragEnd = { draggingChar = null }
+            )
+        }
+
+        if (draggingChar != null) {
+            Surface(
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(bottom = if (showBottomBar) bottomBarHeight + 24.dp else 36.dp)
+                    .size(100.dp)
+                    .align(Alignment.Center),
+                shape = RoundedCornerShape(36.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shadowElevation = 8.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = draggingChar.toString(),
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ContactListItem(
+    contact: Contact,
+    navigator: DestinationsNavigator,
+    selectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    displayOrder: Int,
+    onSelectToggle: (() -> Unit)? = null
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val prefs = koinInject<PreferenceManager>()
+    val contactsVM: ContactsViewModel = koinActivityViewModel()
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var isPressed by remember { mutableStateOf(false) }
+    var horizontalDragDetected by remember { mutableStateOf(false) }
+
+    val scale by animateFloatAsState(
+        targetValue = if (showMenu) 0.97f else if (isPressed) 0.97f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "contactItemScale"
+    )
+
+    val headline = getDisplayName(contact, displayOrder)
+
+    // Delete confirmation dialog
+    if (showDeleteConfirm) {
+        var trashEnabled by remember { mutableStateOf(prefs.isContactsTrashEnabled()) }
+        SmartDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = if (trashEnabled) stringResource(R.string.trash_contact) else stringResource(R.string.delete_contact),
+            icon = ImageVector.vectorResource(id = R.drawable.ic_delete),
+            iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkRed,
+            iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorRed,
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    contactsVM.deleteContact(contact.id)
+                }) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        ) {
+            Text(
+                if (trashEnabled) stringResource(R.string.trash_contact_subtitle) else stringResource(R.string.delete_contact_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    val onClick: () -> Unit = {
+        if (selectionMode && onSelectToggle != null) {
+            onSelectToggle()
+        } else {
+            if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
+                performAppHaptic(
+                    context,
+                    prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
+                    prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
+                )
+            }
+            navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+        }
+
+    }
+    Surface(
+        color = if (isSelected) cardColorSelected else cardColor,
+        shape = RoundedCornerShape(cardCornerExtraSmall),
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale),
+        shadowElevation = 0.dp
+    ) {
+//        val defaultOrFirstPhone = contact.phoneDetails.firstOrNull { it.isPrimary }?.number ?: contact.phoneNumbers.firstOrNull()
+        val contactInfo = getDisplayContactInfo(contact)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {
+                        if (horizontalDragDetected) return@combinedClickable
+                        onClick()
+                    },
+                    onLongClick = onSelectToggle
+                )
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        isPressed = true
+                        horizontalDragDetected = false
+                        val downPos = down.position
+                        do {
+                            val event = awaitPointerEvent()
+                            val current = event.changes.firstOrNull() ?: break
+                            val dx = kotlin.math.abs(current.position.x - downPos.x)
+                            val dy = kotlin.math.abs(current.position.y - downPos.y)
+                            if (dx > 28.dp.toPx() && dx > dy * 1.3f) horizontalDragDetected = true
+                            if (!current.pressed) break
+                        } while (true)
+                        isPressed = false
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isSelected) {
+                var appeared by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { appeared = true }
+                val iconScale by animateFloatAsState(
+                    targetValue = if (appeared) 1f else 0.5f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "iconScale"
+                )
+                val iconAlpha by animateFloatAsState(
+                    targetValue = if (appeared) 1f else 0f,
+                    animationSpec = tween(250),
+                    label = "iconAlpha"
+                )
+                SmartAvatar(
+                    name = "",
+                    modifier = Modifier.size(42.dp)
+                        .scale(iconScale)
+                        .alpha(iconAlpha),
+                    icon = Icons.Rounded.Check,
+                    iconContainerColor = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                SmartAvatar(
+                    name = contact.displayName,
+                    photoUri = contact.photoUri,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .combinedClickable(
+                            interactionSource = null,
+                            indication = ripple(bounded = false, radius = 32.dp),
+                            onClick = {
+                                if (horizontalDragDetected) return@combinedClickable
+                                onClick()
+                            },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                showMenu = true
+                            }
+                        )
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = headline,
+                    style = MaterialTheme.typography.bodyLarge,
+//                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                if (!contactInfo.isNullOrBlank()) {
+                    Text(
+                        text = contactInfo,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showMenu,
+            enter = slideInVertically(initialOffsetY = { -it }, animationSpec = tween(320, easing = FastOutSlowInEasing)) + fadeIn(tween(280)),
+            exit  = slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(420, easing = FastOutLinearInEasing)) + fadeOut(tween(380))
+        ) {
+            DropdownMenu(
+                shape = MaterialTheme.shapes.large,
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false },
+                offset = DpOffset(62.dp, 48.dp),
+            ) {
+                if (onSelectToggle != null) {
+                    DropdownMenuItem(
+                        contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                        text = { Text(stringResource(R.string.select)) },
+                        leadingIcon = { Icon(Icons.Rounded.CheckBox, null) },
+                        onClick = {
+                            showMenu = false
+                            onSelectToggle()
+                        }
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                }
+                DropdownMenuItem(
+                    contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                    text = { Text(stringResource(R.string.view_contact)) },
+                    leadingIcon = { Icon(Icons.Rounded.AccountCircle, null) },
+                    onClick = {
+                        showMenu = false
+                        navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                    }
+                )
+                DropdownMenuItem(
+                    contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                    text = { Text(stringResource(R.string.edit_contact)) },
+                    leadingIcon = { Icon(Icons.Rounded.Edit, null) },
+                    onClick = {
+                        showMenu = false
+                        navigator.navigate(ContactEditScreenDestination(contactId = contact.id))
+                    }
+                )
+                val shareText = stringResource(R.string.share)
+                DropdownMenuItem(
+                    contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                    text = { Text(shareText) },
+                    leadingIcon = { Icon(Icons.Default.Share, null) },
+                    onClick = {
+                        showMenu = false
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, "${contact.displayName}\n${contact.phoneNumbers.joinToString(", ")}")
+                        }
+                        context.startActivity(Intent.createChooser(intent, shareText))
+                    }
+                )
+                if (!contactInfo.isNullOrBlank()) {
+                    DropdownMenuItem(
+                        contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                        text = { Text(stringResource(R.string.copy)) },
+                        leadingIcon = { Icon(Icons.Rounded.ContentCopy, null) },
+                        onClick = {
+                            showMenu = false
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Phone number", contactInfo))
+                            Toast.makeText(context, "Number copied", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                DropdownMenuItem(
+                    contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                    text = { Text(if (contact.isFavorite) stringResource(R.string.remove_from_favorites) else stringResource(R.string.add_to_favorites)) },
+                    leadingIcon = { Icon(if (contact.isFavorite) Icons.AutoMirrored.Filled.StarHalf else Icons.Default.Star, null, tint = if (contact.isFavorite) MaterialTheme.colorScheme.error else LocalContentColor.current) },
+                    onClick = {
+                        showMenu = false
+                        contactsVM.toggleFavorite(contact)
+                    }
+                )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                )
+                DropdownMenuItem(
+                    contentPadding = PaddingValues(start = 20.dp, end = 26.dp),
+                    text = { Text(stringResource(R.string.delete_contact), color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = { Icon(ImageVector.vectorResource(id = R.drawable.ic_delete), null, tint = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        showMenu = false
+                        showDeleteConfirm = true
+                    }
+                )
+            }
+        }
+    }
+} // end AZListContent
+
+@Composable
+fun AlphabetSideBar(
+    alphabet: List<Char>,
+    selectedChar: Char?,
+    modifier: Modifier = Modifier,
+    onLetterSelected: (Char) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    var columnHeight by remember { mutableStateOf(0) }
+
+    Surface(
+        modifier = modifier
+            .width(24.dp)
+            .wrapContentHeight()
+            .onGloballyPositioned { columnHeight = it.size.height }
+            .pointerInput(alphabet) {
+                detectVerticalDragGestures(
+                    onDragStart = { offset ->
+                        if (columnHeight > 0) {
+                            val itemHeight = columnHeight.toFloat() / alphabet.size
+                            val index = (offset.y / itemHeight).toInt()
+                            val char = alphabet.getOrNull(index.coerceIn(0, alphabet.lastIndex))
+                            if (char != null) onLetterSelected(char)
+                        }
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() }
+                ) { change, _ ->
+                    if (columnHeight > 0) {
+                        val itemHeight = columnHeight.toFloat() / alphabet.size
+                        val index = (change.position.y / itemHeight).toInt()
+                        val char = alphabet.getOrNull(index.coerceIn(0, alphabet.lastIndex))
+                        if (char != null) onLetterSelected(char)
+                    }
+                }
+            },
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            alphabet.forEach { char ->
+                val isSelected = char == selectedChar
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = char.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontSize = 10.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
+    }
+}

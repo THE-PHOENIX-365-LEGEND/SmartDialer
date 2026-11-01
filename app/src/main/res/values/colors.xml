@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FF6C7C4F</color>
+    <color name="ic_launcher_custom_phone_background_color">#FF6C7C4F</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <!-- Splash background matches Material3 surface (light) -->
+    <color name="splash_bg">#EDEDF6</color>
+
+    <color name="notification_color">#EDEDF6</color>
+</resources>

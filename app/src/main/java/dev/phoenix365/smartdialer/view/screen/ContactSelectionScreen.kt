@@ -1,0 +1,867 @@
+package dev.phoenix365.smartdialer.view.screen
+
+import android.Manifest
+import android.app.Activity
+import android.content.ContentUris
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.ContactsContract
+import android.view.HapticFeedbackConstants
+import android.view.Surface
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.LocationOn
+import androidx.compose.material.icons.rounded.MicNone
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.rememberPermissionState
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.controller.ContactsViewModel
+import dev.phoenix365.smartdialer.controller.util.formatPhoneNumber
+import dev.phoenix365.smartdialer.view.components.SmartFilterChip
+import dev.phoenix365.smartdialer.view.components.SmartScrollAnimatedItem
+import dev.phoenix365.smartdialer.modal.data.Contact
+import dev.phoenix365.smartdialer.view.components.*
+import dev.phoenix365.smartdialer.view.theme.*
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import com.ramcosta.composedestinations.result.ResultBackNavigator
+import dev.phoenix365.smartdialer.controller.util.ContactUtils.getPhoneNumber
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.controller.util.VoiceSearchContract
+import dev.phoenix365.smartdialer.modal.data.getDisplayName
+import dev.phoenix365.smartdialer.view.theme.MyColors.cardColor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinActivityViewModel
+import kotlin.time.Duration.Companion.milliseconds
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@Destination<RootGraph>
+@Composable
+fun ContactSelectionScreen(
+    navigator: DestinationsNavigator,
+    resultNavigator: ResultBackNavigator<String>,
+    title: String = "",
+    isMultiSelect: Boolean = false,
+    actionButtonText: String = "",
+    returnContactId: Boolean = false,
+    initialPhoneToAssign: String? = null,
+    isExternalPick: Boolean = false,
+    pickMimeType: String? = null
+) {
+    val context = LocalContext.current
+    val view = LocalView.current
+    val viewModel: ContactsViewModel = koinActivityViewModel()
+    val allContacts by viewModel.allContactsFull.collectAsState()
+    val isLoading by viewModel.isLoadingFull.collectAsState()
+
+    val listState = rememberLazyListState()
+    val prefs = koinInject<PreferenceManager>()
+    val scope = rememberCoroutineScope()
+
+    val resolvedPickType = when (pickMimeType) {
+        "vnd.android.cursor.dir/phone_v2", "vnd.android.cursor.dir/phone", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> "phone"
+        "vnd.android.cursor.dir/email_v2", "vnd.android.cursor.dir/email", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE -> "email"
+        "vnd.android.cursor.dir/postal-address_v2", "vnd.android.cursor.dir/postal-address", "vnd.android.cursor.dir/postals", ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE -> "address"
+        else -> "contact"
+    }
+
+    // Function to retrieve the URI of a specific field
+    suspend fun getDataUriForContact(contactId: String, mimeType: String, specificValue: String? = null): Uri? = withContext(Dispatchers.IO) {
+        val dataUri = ContactsContract.Data.CONTENT_URI
+        val projection = arrayOf(ContactsContract.Data._ID)
+        var selection = "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?"
+        val selectionArgs = mutableListOf(contactId, mimeType)
+
+        if (specificValue != null) {
+            when (mimeType) {
+                ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> {
+                    selection += " AND ${ContactsContract.CommonDataKinds.Phone.NUMBER} = ?"
+                    selectionArgs.add(specificValue)
+                }
+                ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE -> {
+                    selection += " AND ${ContactsContract.CommonDataKinds.Email.ADDRESS} = ?"
+                    selectionArgs.add(specificValue)
+                }
+                ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE -> {
+                    selection += " AND ${ContactsContract.CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS} = ?"
+                    selectionArgs.add(specificValue)
+                }
+            }
+        }
+
+        try {
+            context.contentResolver.query(dataUri, projection, selection, selectionArgs.toTypedArray(), null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val dataId = cursor.getLong(0)
+                    return@withContext ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, dataId)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        null
+    }
+
+    var queryFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
+    val searchQuery = queryFieldValue.text
+    var selectedFilterTab by remember { mutableIntStateOf(0) }
+    var selectedContactIds by remember { mutableStateOf(setOf<String>()) }
+    var selectedPhoneNumbers by remember { mutableStateOf(setOf<String>()) }
+
+    var pendingMultiNumberContact by remember { mutableStateOf<Contact?>(null) }
+    var pickerDialogContact by remember { mutableStateOf<Contact?>(null) }
+    var pickerDialogItems by remember { mutableStateOf<List<NumberPickerItem>>(emptyList()) }
+    var pickerDialogIcon by remember { mutableStateOf(Icons.Rounded.Phone) }
+    var pickerDialogMimeType by remember { mutableStateOf(ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE) }
+
+    val hideVoiceSearch = remember { prefs.getBoolean(PreferenceManager.KEY_HIDE_VOICE_SEARCH, false) }
+    val displayOrder = remember { prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0) }
+    val sortOrder = remember { prefs.getInt(PreferenceManager.KEY_CONTACT_SORT_ORDER, 0) }
+    val cardCorner  = remember { prefs.getInt(PreferenceManager.KEY_CARD_ROUNDNESS, SmartShapeDefaults.DefaultRoundness) }
+
+    // Voice search
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var voiceSearchResult by remember { mutableStateOf<String?>(null) }
+    // Synchronizing the query with textFieldValue.text
+    LaunchedEffect(voiceSearchResult) {
+        voiceSearchResult?.let { result ->
+            queryFieldValue = TextFieldValue(result, selection = TextRange(result.length))
+            keyboardController?.hide()
+            voiceSearchResult = null
+        }
+    }
+    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val voiceSearchLauncher = rememberLauncherForActivityResult(VoiceSearchContract()) { result ->
+        result?.let {
+            voiceSearchResult = result
+            keyboardController?.hide()
+        }
+    }
+
+    // ─── Checking Permissions ───────────────────────────────────
+    var hasContactsPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { permissions ->
+        hasContactsPermission = permissions
+        if (permissions) {
+            viewModel.fetchContactsFull()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (hasContactsPermission) {
+            viewModel.fetchContactsFull()
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+    // ────────────────────────────────────────────────────────────
+
+    val baseContacts = remember(allContacts, isExternalPick, pickMimeType) {
+        if (!isExternalPick || pickMimeType.isNullOrEmpty()) {
+            allContacts
+        } else {
+            when (pickMimeType) {
+                "vnd.android.cursor.dir/phone_v2", "vnd.android.cursor.dir/phone" -> allContacts.filter { it.phoneNumbers.isNotEmpty() }
+                "vnd.android.cursor.dir/email_v2", "vnd.android.cursor.dir/email" -> allContacts.filter { it.emails.isNotEmpty() }
+                "vnd.android.cursor.dir/postal-address_v2", "vnd.android.cursor.dir/postal-address", "vnd.android.cursor.dir/postals" -> allContacts.filter { it.addresses.isNotEmpty() }
+                else -> allContacts
+            }
+        }
+    }
+
+    val searchedBase = remember(baseContacts, searchQuery) {
+        if (searchQuery.isBlank()) baseContacts
+        else {
+            val cleanSearch = searchQuery.trim()
+            baseContacts.filter {
+                it.displayName.contains(cleanSearch, ignoreCase = true) ||
+                        it.phoneNumbers.any { num -> num.contains(cleanSearch) } ||
+                        it.emails.any { email -> email.value.contains(cleanSearch) } ||
+                        it.addresses.any { address -> address.formattedAddress.contains(cleanSearch) }
+            }
+        }
+    }
+
+    val allCount   = searchedBase.size
+    val favCount   = remember(searchedBase) { searchedBase.count { it.isFavorite } }
+    val privCount  = remember(searchedBase) { searchedBase.count { it.isPrivate } }
+
+    val filteredContacts = remember(searchedBase, selectedFilterTab) {
+        when (selectedFilterTab) {
+            1 -> searchedBase.filter { it.isFavorite }
+            2 -> searchedBase.filter { it.isPrivate }
+            else -> searchedBase
+        }.sortedBy { it.displayName.lowercase() }
+    }
+
+    val groupedContacts = remember(filteredContacts) {
+        val mainGroups = filteredContacts.groupBy {
+            val firstChar =
+                if (sortOrder == 1) it.familyName.ifBlank { it.displayName }.firstOrNull()?.uppercaseChar() ?: '#'
+                else it.givenName.ifBlank { it.displayName }.firstOrNull()?.uppercaseChar() ?: '#'
+            if (firstChar.isLetter()) firstChar else '#'
+        }.toMutableMap()
+
+        val finalMap = linkedMapOf<Char, List<Contact>>()
+
+        mainGroups.keys.filter { it.isLetter() }.sorted().forEach { char ->
+            finalMap[char] = mainGroups[char]!!
+        }
+        val hashGroup = mainGroups['#']
+        if (hashGroup != null) finalMap['#'] = hashGroup
+        finalMap
+    }
+
+    val totalSelectedCount = maxOf(selectedContactIds.size, selectedPhoneNumbers.size)
+
+    var visible by remember { mutableStateOf(false) }
+    var isClosing by remember { mutableStateOf(false) }
+
+    fun navigateBack() {
+        if (isClosing) return
+        isClosing = true
+        scope.launch {
+            delay(280.milliseconds)
+            if (isExternalPick) {
+                val activity = context as? Activity
+                activity?.setResult(Activity.RESULT_CANCELED)
+                activity?.finish()
+            } else {
+                navigator.navigateUp()
+            }
+        }
+    }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (visible && !isClosing) 1f else 0f,
+        animationSpec = if (isClosing) tween(280, easing = FastOutLinearInEasing) else tween(350),
+        label = "settingsAlpha"
+    )
+    val offsetY by animateDpAsState(
+        targetValue = if (visible && !isClosing) 0.dp else if (isClosing) 60.dp else 30.dp,
+        animationSpec = if (isClosing) tween(300, easing = FastOutLinearInEasing)
+        else spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioLowBouncy),
+        label = "settingsOffsetY"
+    )
+    LaunchedEffect(Unit) { visible = true }
+
+    val rotation =
+        (context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val isRotation90 = rotation == if (isLtr) Surface.ROTATION_90 else Surface.ROTATION_270
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                windowInsets = WindowInsets.systemBars.only(
+                    if (isRotation90) WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    else WindowInsetsSides.Top
+                ),
+                title = {
+                    Column {
+                        Title(
+                            if (isMultiSelect && totalSelectedCount > 0) {
+                                stringResource(R.string.selected_items, totalSelectedCount)
+                            } else {
+                                title.ifBlank { stringResource(R.string.select_contacts) }
+                            }
+                        )
+                        if (initialPhoneToAssign != null) Title(formatPhoneNumber(initialPhoneToAssign), false)
+                    }
+                },
+                navigationIcon = {
+                    NavigationIcon(onClick = { navigateBack() })
+                },
+                actions = {
+                    if (hasContactsPermission) IconButton(onClick = { navigator.navigate(ContactEditScreenDestination(initialPhone = initialPhoneToAssign)) }) {
+                        Icon(Icons.Rounded.PersonAdd, contentDescription = stringResource(R.string.create_contact))
+                    }
+                    if (isMultiSelect && totalSelectedCount > 0) {
+                        IconButton(onClick = {
+                            selectedContactIds = emptySet()
+                            selectedPhoneNumbers = emptySet()
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+                        }
+                    }
+                    Spacer(modifier = Modifier.size(6.dp))
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+        },
+        floatingActionButton = {
+            if (isMultiSelect && totalSelectedCount > 0) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        val csvResult = if (returnContactId) {
+                            selectedContactIds.joinToString(",")
+                        } else {
+                            selectedPhoneNumbers.joinToString(",")
+                        }
+                        resultNavigator.navigateBack(result = csvResult)
+                    },
+                    icon = { Icon(Icons.Default.Check, contentDescription = null) },
+                    text = { Text(actionButtonText.ifBlank { stringResource(R.string.select) + " ($totalSelectedCount)" }, fontWeight = FontWeight.Bold) },
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        BackHandler(enabled = !isClosing) { navigateBack() }
+        if (!hasContactsPermission) {
+            PermissionDeniedView(
+                icon = Icons.Rounded.People,
+                title = stringResource(R.string.contacts_permission),
+                description = stringResource(R.string.contacts_permission_description),
+                onGrantClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) }
+            )
+        } else {
+            ScrollHapticsEffect(listState = listState)
+            if (isLoading && allContacts.isEmpty()) {
+                SmartLoadingIndicatorView()
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            top = padding.calculateTopPadding(),
+                            start = 0.dp,
+                            end = 0.dp,
+                            bottom = 0.dp
+                        )
+                        .alpha(alpha)
+                        .offset(y = offsetY),
+                    contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    // Search Bar
+                    item {
+                        val shape = if (cardCorner > 12) CircleShape else MaterialTheme.shapes.extraExtraLarge
+                        Surface(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp).padding(bottom = 12.dp)
+                                .fillMaxWidth().height(52.dp),
+                            shape = shape,
+                            color = cardColor
+                        ) {
+                            TextField(
+                                value = queryFieldValue,
+                                onValueChange = { queryFieldValue = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text(stringResource(R.string.search_contacts)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_contacts),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .padding(start = 12.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    Row {
+                                        AnimatedVisibility(
+                                            visible = searchQuery.isNotEmpty(),
+                                            enter = fadeIn() + scaleIn(),
+                                            exit = fadeOut() + scaleOut()
+                                        ) {
+                                            IconButton(
+                                                onClick = { queryFieldValue = TextFieldValue("", selection = TextRange(0)) }
+                                            ) {
+                                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear))
+                                            }
+                                        }
+
+                                        AnimatedVisibility(
+                                            visible = micPermissionState.status == PermissionStatus.Granted && !hideVoiceSearch,
+                                            enter = fadeIn() + scaleIn(),
+                                            exit = fadeOut() + scaleOut()
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    if (micPermissionState.status == PermissionStatus.Granted) {
+                                                        voiceSearchLauncher.launch(Unit)
+                                                    } else {
+                                                        micPermissionState.launchPermissionRequest()
+                                                    }
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.MicNone,
+                                                    contentDescription = stringResource(R.string.voice_input),
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.size(4.dp))
+                                    }
+                                },
+                                colors = TextFieldDefaults.colors(
+                                    focusedContainerColor = Color.Transparent,
+                                    unfocusedContainerColor = Color.Transparent,
+                                    disabledContainerColor = Color.Transparent,
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent
+                                ),
+                                singleLine = true
+                            )
+                        }
+                    }
+
+                    // Filter Chips
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp).padding(bottom = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SmartFilterChip(
+                                label = stringResource(R.string.filter_all) + " ($allCount)",
+                                selected = selectedFilterTab == 0,
+                                onClick = { selectedFilterTab = 0 },
+//                            leadingIcon = { Icon(Icons.Rounded.People, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                            SmartFilterChip(
+                                label = stringResource(R.string.favorites) + " ($favCount)",
+                                selected = selectedFilterTab == 1,
+                                onClick = { selectedFilterTab = 1 },
+//                            leadingIcon = { Icon(Icons.Outlined.Star, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            )
+                            if (privCount > 0) {
+                                SmartFilterChip(
+                                    label = "Private ($privCount)",
+                                    selected = selectedFilterTab == 2,
+                                    onClick = { selectedFilterTab = 2 },
+//                                leadingIcon = { Icon(ContactUtils.getAccountIcon(null, true), contentDescription = null, modifier = Modifier.size(16.dp)) }
+                                )
+                            }
+                        }
+                    }
+
+                    val cleanQuery = searchQuery.trim()
+                    val isPhoneQuery = cleanQuery.any { it.isDigit() } || cleanQuery.startsWith("+")
+
+                    if (isPhoneQuery) {
+                        item {
+                            val isCustomSelected = selectedPhoneNumbers.contains(cleanQuery)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+                                    .clip(MaterialTheme.shapes.large)
+                                    .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                        if (isMultiSelect) {
+                                            selectedPhoneNumbers = if (isCustomSelected) {
+                                                selectedPhoneNumbers - cleanQuery
+                                            } else {
+                                                selectedPhoneNumbers + cleanQuery
+                                            }
+                                        } else {
+                                            resultNavigator.navigateBack(result = cleanQuery)
+                                        }
+                                    },
+                                shape = MaterialTheme.shapes.large,
+                                color = if (isCustomSelected) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLow
+                                },
+                                border = if (isCustomSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isMultiSelect) {
+                                        Checkbox(
+                                            checked = isCustomSelected,
+                                            onCheckedChange = { checked ->
+                                                selectedPhoneNumbers = if (checked) {
+                                                    selectedPhoneNumbers + cleanQuery
+                                                } else {
+                                                    selectedPhoneNumbers - cleanQuery
+                                                }
+                                            },
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                    }
+                                    Surface(
+                                        modifier = Modifier.size(44.dp),
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Outlined.Dialpad, contentDescription = null, modifier = Modifier.size(22.dp))
+                                        }
+                                    }
+                                    Spacer(Modifier.width(16.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = stringResource(R.string.use_number, cleanQuery),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+//                                    Spacer(Modifier.height(2.dp))
+//                                    Text(
+//                                        text = "Tap to select this custom number",
+//                                        style = MaterialTheme.typography.bodySmall,
+//                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+//                                    )
+                                    }
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (filteredContacts.isEmpty() && !isPhoneQuery) {
+                        item {
+                            Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
+                                PlaceholderView(
+                                    icon = Icons.Rounded.People,
+                                    title = stringResource(R.string.no_contacts_found),
+                                )
+                            }
+                        }
+                    } else {
+                        groupedContacts.forEach { (initial, contactsInGroup) ->
+                            // ── Letter header ──────────────────────────────────────────
+                            stickyHeader(key = "header_$initial", contentType = "letterHeader") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 28.dp, vertical = 4.dp)
+                                        .padding(top = 8.dp)
+                                ) {
+                                    Text(
+                                        text = if (initial == '❤') stringResource(R.string.favorites) else initial.toString(),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                }
+                            }
+
+                            item(key = "group_$initial") {
+                                SmartExpressiveCard(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                ) {
+                                    contactsInGroup.forEachIndexed { index, contact ->
+                                        val primaryNumber = getPhoneNumber(contact) ?: ""
+                                        val isSelected = if (isMultiSelect) {
+                                            selectedContactIds.contains(contact.id) || selectedPhoneNumbers.contains(primaryNumber)
+                                        } else false
+
+                                        SmartScrollAnimatedItem(delayMs = (index * 25L).coerceAtMost(250L)) {
+                                            SmartListItem(
+                                                paddingVertical = 8.dp,
+                                                headline = getDisplayName(contact, displayOrder),
+                                                supporting = when (resolvedPickType) {
+                                                    "email" -> {
+                                                        if (contact.emails.isNotEmpty()) {
+                                                            if (contact.emails.size > 1) stringResource(R.string.plus_more, contact.emails.first().value, contact.emails.size - 1)
+                                                            else contact.emails.first().value
+                                                        } else null
+                                                    }
+                                                    "address" -> {
+                                                        if (contact.addresses.isNotEmpty()) {
+                                                            if (contact.addresses.size > 1) stringResource(R.string.plus_more, contact.addresses.first().formattedAddress, contact.addresses.size - 1)
+                                                            else contact.addresses.first().formattedAddress
+                                                        } else null
+                                                    }
+                                                    else -> {
+                                                        if (contact.phoneNumbers.isNotEmpty()) {
+                                                            if (contact.phoneNumbers.size > 1) stringResource(R.string.plus_more, formatPhoneNumber(primaryNumber), contact.phoneNumbers.size - 1)
+                                                            else formatPhoneNumber(primaryNumber)
+                                                        } else null
+                                                    }
+                                                },
+                                                avatarName = contact.displayName,
+                                                photoUri = contact.photoUri,
+                                                onClick = {
+                                                    view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                                    if (isMultiSelect) {
+                                                        if (isSelected) {
+                                                            selectedContactIds = selectedContactIds - contact.id
+                                                            selectedPhoneNumbers = selectedPhoneNumbers - contact.phoneNumbers.toSet()
+                                                        } else {
+                                                            selectedContactIds = selectedContactIds + contact.id
+                                                            if (primaryNumber.isNotBlank()) {
+                                                                selectedPhoneNumbers = selectedPhoneNumbers + primaryNumber
+                                                            }
+                                                        }
+                                                    } else {
+                                                        if (initialPhoneToAssign != null) {
+                                                            navigator.navigate(ContactEditScreenDestination(contactId = contact.id, initialPhone = initialPhoneToAssign))
+                                                        } else if (isExternalPick) {
+                                                            val activity = context as? Activity
+                                                            val contactUri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI, contact.id)
+
+                                                            val itemMimeType = when (resolvedPickType) {
+                                                                "phone" -> ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE
+                                                                "email" -> ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE
+                                                                "address" -> ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE
+                                                                else -> null
+                                                            }
+
+                                                            if (itemMimeType != null) {
+                                                                val dataList: List<String> = when (itemMimeType) {
+                                                                    ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> contact.phoneNumbers
+                                                                    ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE -> contact.emails.map { it.value }
+                                                                    ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE -> contact.addresses.map { it.formattedAddress }
+                                                                    else -> emptyList()
+                                                                }
+
+                                                                if (dataList.size > 1) {
+                                                                    pickerDialogContact = contact
+                                                                    pickerDialogItems = dataList.map { NumberPickerItem(it) }
+                                                                    pickerDialogIcon = when (itemMimeType) {
+                                                                        ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE -> Icons.Rounded.Phone
+                                                                        ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE -> Icons.Rounded.Email
+                                                                        ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE -> Icons.Rounded.LocationOn
+                                                                        else -> Icons.Rounded.Phone
+                                                                    }
+                                                                    pickerDialogMimeType = itemMimeType
+                                                                } else if (dataList.size == 1) {
+                                                                    val specificValue = dataList.first()
+                                                                    scope.launch {
+                                                                        val dataUri = getDataUriForContact(contact.id, itemMimeType, specificValue)
+                                                                        if (dataUri == null) {
+                                                                            activity?.setResult(Activity.RESULT_CANCELED)
+                                                                            activity?.finish()
+                                                                            return@launch
+                                                                        }
+                                                                        val resultIntent = Intent().apply {
+                                                                            data = dataUri
+                                                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                                            clipData = android.content.ClipData.newRawUri(null, dataUri)
+                                                                        }
+                                                                        activity?.setResult(Activity.RESULT_OK, resultIntent)
+                                                                        activity?.finish()
+                                                                    }
+                                                                } else {
+                                                                    activity?.setResult(Activity.RESULT_CANCELED)
+                                                                    activity?.finish()
+                                                                }
+                                                            } else {
+                                                                // If you were just asking for contact information
+                                                                val resultIntent = Intent().apply { data = contactUri }
+                                                                activity?.setResult(Activity.RESULT_OK, resultIntent)
+                                                                activity?.finish()
+                                                            }
+                                                        } else if (returnContactId) {
+                                                            resultNavigator.navigateBack(result = contact.id)
+                                                        } else {
+                                                            if (contact.phoneNumbers.size > 1) {
+                                                                pendingMultiNumberContact = contact
+                                                            } else if (primaryNumber.isNotBlank()) {
+                                                                resultNavigator.navigateBack(result = primaryNumber)
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                trailingContent = {
+                                                    if (isMultiSelect) {
+                                                        Checkbox(
+                                                            checked = isSelected,
+                                                            onCheckedChange = { checked ->
+                                                                if (checked) {
+                                                                    selectedContactIds = selectedContactIds + contact.id
+                                                                    if (primaryNumber.isNotBlank()) {
+                                                                        selectedPhoneNumbers = selectedPhoneNumbers + primaryNumber
+                                                                    }
+                                                                } else {
+                                                                    selectedContactIds = selectedContactIds - contact.id
+                                                                    selectedPhoneNumbers = selectedPhoneNumbers - contact.phoneNumbers.toSet()
+                                                                }
+                                                            }
+                                                        )
+                                                    } else if (initialPhoneToAssign != null) {
+                                                        Surface(
+                                                            shape = CircleShape,
+                                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        ) {
+                                                            Row(
+                                                                verticalAlignment = Alignment.CenterVertically,
+                                                                modifier = Modifier.padding(
+                                                                    horizontal = 8.dp,
+                                                                    vertical = 4.dp
+                                                                )
+                                                            ) {
+//                                                            Icon(
+//                                                                imageVector = Icons.Outlined.PersonAdd,
+//                                                                contentDescription = null,
+//                                                                modifier = Modifier.size(13.dp)
+//                                                            )
+//                                                            Spacer(Modifier.width(4.dp))
+                                                                Text(
+                                                                    text = stringResource(R.string.add),
+                                                                    style = MaterialTheme.typography.labelSmall,
+                                                                    fontWeight = FontWeight.Bold
+                                                                )
+                                                            }
+                                                        }
+                                                    } else {
+                                                        Icon(
+                                                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pendingMultiNumberContact?.let { contact ->
+        NumberPickerDialog(
+            numbers = contact.phoneNumbers,
+            onDismissRequest = { pendingMultiNumberContact = null },
+            onNumberSelected = { selectedNumber ->
+                pendingMultiNumberContact = null
+                if (isExternalPick) {
+                    scope.launch {
+                        val dataUri = getDataUriForContact(
+                            contact.id,
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+                            selectedNumber
+                        )
+                        val activity = context as? Activity
+                        if (dataUri == null) {
+                            activity?.setResult(Activity.RESULT_CANCELED)
+                            activity?.finish()
+                            return@launch
+                        }
+                        val resultIntent = Intent().apply {
+                            data = dataUri
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            clipData = android.content.ClipData.newRawUri(null, dataUri)
+                        }
+                        activity?.setResult(Activity.RESULT_OK, resultIntent)
+                        activity?.finish()
+                    }
+                } else {
+                    resultNavigator.navigateBack(result = selectedNumber)
+                }
+            }
+        )
+    }
+
+    pickerDialogContact?.let { contact ->
+        NumberPickerDialog(
+            items = pickerDialogItems,
+            icon = pickerDialogIcon,
+            onDismissRequest = { pickerDialogContact = null },
+            onNumberSelected = { selectedValue ->
+                pickerDialogContact = null
+                val activity = context as? Activity
+                scope.launch {
+                    val dataUri = getDataUriForContact(contact.id, pickerDialogMimeType, selectedValue)
+                    if (dataUri == null) {
+                        activity?.setResult(Activity.RESULT_CANCELED)
+                        activity?.finish()
+                        return@launch
+                    }
+                    val resultIntent = Intent().apply {
+                        data = dataUri
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        clipData = android.content.ClipData.newRawUri(null, dataUri)
+                    }
+                    activity?.setResult(Activity.RESULT_OK, resultIntent)
+                    activity?.finish()
+                }
+            }
+        )
+    }
+}

@@ -1,0 +1,684 @@
+package dev.phoenix365.smartdialer.view.screen.settings
+
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.provider.Settings
+import android.view.Surface
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallReceived
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.rounded.Audiotrack
+import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.FlashOn
+import androidx.compose.material.icons.rounded.RingVolume
+import androidx.compose.material.icons.rounded.SwipeVertical
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.cardCornerExtraSmall
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.view.components.NavigationIcon
+import dev.phoenix365.smartdialer.view.components.SmartAnimatedSection
+import dev.phoenix365.smartdialer.view.components.SmartDialog
+import dev.phoenix365.smartdialer.view.components.SmartExpressiveCard
+import dev.phoenix365.smartdialer.view.components.SmartListItem
+import dev.phoenix365.smartdialer.view.components.SmartSwitchListItem
+import dev.phoenix365.smartdialer.view.theme.MyColors.cardColor
+import dev.phoenix365.smartdialer.view.theme.customColors
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.phoenix365.smartdialer.view.components.Title
+import org.koin.compose.koinInject
+import kotlin.math.roundToInt
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Destination<RootGraph>
+@Composable
+fun SoundVibrationScreen(navigator: DestinationsNavigator) {
+    val prefs = koinInject<PreferenceManager>()
+    val context = LocalContext.current
+
+    var dtmfTone by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_DTMF_TONE, false)) }
+    var vibrateOnAnswer by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_VIBRATE_ON_ANSWER, true)) }
+    var vibrateOnHangup by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_VIBRATE_ON_HANGUP, false)) }
+
+    var tapHapticsEnabled by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) }
+    var scrollHapticsEnabled by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SCROLL_HAPTICS, false)) }
+    var scrollCmPerHaptic by remember { mutableFloatStateOf(prefs.getFloat(PreferenceManager.KEY_SCROLL_CM_PER_HAPTIC, 1.5f)) }
+    var scrollHapticStrength by remember { mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_SCROLL_HAPTIC_STRENGTH, 60)) }
+
+    // Haptics popup state
+    var showHapticsDialog by remember { mutableStateOf(false) }
+    var hapticsStrength by remember { mutableStateOf(prefs.getString(PreferenceManager.KEY_HAPTICS_STRENGTH, "light") ?: "light") }
+
+
+    // Flash on Call state
+    var flashOnCallEnabled by remember { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_FLASH_ON_CALL_ENABLED, false)) }
+    var flashOnCallMode by remember { mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_FLASH_ON_CALL_MODE, 0)) }
+    var showFlashDialog by remember { mutableStateOf(false) }
+
+    // ── Flash Dialog ─────────────────────────────────────────────────────────
+    if (showFlashDialog) {
+        SmartDialog(
+            onDismissRequest = { showFlashDialog = false },
+            title = stringResource(R.string.flash_on_call),
+            icon = Icons.Rounded.FlashOn,
+            iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+            iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+            confirmButton = {
+                TextButton(onClick = { showFlashDialog = false }) { Text(stringResource(R.string.done)) }
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.flash_on_call), style = MaterialTheme.typography.bodyLarge)
+                    Switch(
+                        checked = flashOnCallEnabled,
+                        onCheckedChange = {
+                            flashOnCallEnabled = it
+                            prefs.setBoolean(PreferenceManager.KEY_FLASH_ON_CALL_ENABLED, it)
+                        }
+                    )
+                }
+
+                if (flashOnCallEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(0.4f))
+
+                    Text(stringResource(R.string.flash_on_call_mode), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        listOf(
+                            0 to stringResource(R.string.flash_mode_always),
+                            1 to stringResource(R.string.flash_mode_silent_vibrate)
+                        ).forEach { (modeKey, label) ->
+                            val selected = flashOnCallMode == modeKey
+                            val interactionSource =
+                                remember { MutableInteractionSource() }
+                            val isPressed by interactionSource.collectIsPressedAsState()
+                            val cornerRadius by animateDpAsState(
+                                targetValue = if (isPressed || selected) 20.dp else 8.dp,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "ButtonShape"
+                            )
+                            val outsideCornerRadius by animateDpAsState(
+                                targetValue = 20.dp,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "ButtonShape"
+                            )
+                            val shape = remember(cornerRadius, modeKey) {
+                                when (modeKey) {
+                                    0 -> RoundedCornerShape(
+                                        topStart = outsideCornerRadius,
+                                        topEnd = cornerRadius,
+                                        bottomEnd = cornerRadius,
+                                        bottomStart = outsideCornerRadius
+                                    )
+
+                                    else -> RoundedCornerShape(
+                                        topStart = cornerRadius,
+                                        topEnd = outsideCornerRadius,
+                                        bottomEnd = outsideCornerRadius,
+                                        bottomStart = cornerRadius
+                                    )
+                                }
+                            }
+
+                            Surface(
+                                onClick = {
+                                    flashOnCallMode = modeKey
+                                    prefs.setInt(PreferenceManager.KEY_FLASH_ON_CALL_MODE, modeKey)
+                                },
+                                shape = shape,
+                                color = if (selected) MaterialTheme.colorScheme.primary else cardColor,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp),
+                                interactionSource = interactionSource,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        label,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Haptics Dialog ────────────────────────────────────────────────────────
+    if (showHapticsDialog) {
+        fun triggerPreviewVibration(strength: String) {
+            val duration = if (strength == "strong") 80L else 40L
+            val amplitude = if (strength == "strong") 255 else 80
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                    vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(duration, amplitude))
+                } else {
+                    @Suppress("DEPRECATION")
+                    val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+                    v.vibrate(VibrationEffect.createOneShot(duration, amplitude))
+                }
+            } catch (_: Exception) {}
+        }
+
+        // Custom intensity: 0f..1f stored in prefs
+        var customIntensity by remember {
+            mutableFloatStateOf(prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f))
+        }
+
+        SmartDialog(
+            onDismissRequest = { showHapticsDialog = false },
+            title = stringResource(R.string.tap_haptics),
+            icon = Icons.Rounded.Vibration,
+            iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkOrange,
+            iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorOrange,
+            confirmButton = {
+                TextButton(onClick = { showHapticsDialog = false }) { Text(stringResource(R.string.done)) }
+            }
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(stringResource(R.string.enable_tap_haptics), style = MaterialTheme.typography.bodyLarge)
+                    Switch(
+                        checked = tapHapticsEnabled,
+                        onCheckedChange = {
+                            tapHapticsEnabled = it
+                            prefs.setBoolean(PreferenceManager.KEY_APP_HAPTICS, it)
+                        }
+                    )
+                }
+
+                if (tapHapticsEnabled) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(0.4f))
+
+                    Text(stringResource(R.string.haptics_intensity), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+
+                    // Three-way segmented control: Light / Strong / Custom
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        listOf(
+                            "light" to stringResource(R.string.haptics_soft),
+                            "strong" to stringResource(R.string.haptics_strong),
+                            "custom" to stringResource(R.string.haptics_custom)
+                        ).forEach { (key, label) ->
+                            val selected = hapticsStrength == key
+                            val interactionSource =
+                                remember { MutableInteractionSource() }
+                            val isPressed by interactionSource.collectIsPressedAsState()
+                            val cornerRadius by animateDpAsState(
+                                targetValue = if (isPressed || selected) 20.dp else 8.dp,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "ButtonShape"
+                            )
+                            val outsideCornerRadius by animateDpAsState(
+                                targetValue = 20.dp,
+                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                label = "ButtonShape"
+                            )
+                            val shape = remember(cornerRadius, key) {
+                                when (key) {
+                                    "light" -> RoundedCornerShape(
+                                        topStart = outsideCornerRadius,
+                                        topEnd = cornerRadius,
+                                        bottomEnd = cornerRadius,
+                                        bottomStart = outsideCornerRadius
+                                    )
+
+                                    "custom" -> RoundedCornerShape(
+                                        topStart = cornerRadius,
+                                        topEnd = outsideCornerRadius,
+                                        bottomEnd = outsideCornerRadius,
+                                        bottomStart = cornerRadius
+                                    )
+
+                                    else -> RoundedCornerShape(cornerRadius)
+                                }
+                            }
+
+                            Surface(
+                                onClick = {
+                                    hapticsStrength = key
+                                    prefs.setString(PreferenceManager.KEY_HAPTICS_STRENGTH, key)
+                                    if (key != "custom") triggerPreviewVibration(key)
+                                    else {
+                                        val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
+                                        val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
+                                        try {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                val v = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                                                v.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                            }
+                                        } catch (_: Exception) {}
+                                    }
+                                },
+                                shape = shape,
+                                color = if (selected) MaterialTheme.colorScheme.primary else cardColor,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(42.dp),
+                                interactionSource = interactionSource,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        label,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Custom intensity slider — only shown when "Custom" is selected
+                    AnimatedVisibility(
+                        visible = hapticsStrength == "custom",
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        var lastVibratedSegment by remember { mutableIntStateOf(-1) }
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Slider(
+                                value = customIntensity,
+                                onValueChange = { v ->
+                                    customIntensity = v
+                                    prefs.setFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, v)
+                                    val segment = (v * 16).toInt()
+                                    if (segment != lastVibratedSegment) {
+                                        lastVibratedSegment = segment
+                                        val dur = (8 + v * 55).toLong().coerceIn(8, 63)
+                                        val amp = (30 + (v * 180)).toInt().coerceIn(30, 210)
+                                        try {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                                vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                val v2 = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                                                v2.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                            }
+                                        } catch (_: Exception) {}
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
+                                    val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
+                                    try {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                            val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                            vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            val v2 = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                                            v2.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                        }
+                                    } catch (_: Exception) {}
+                                    lastVibratedSegment = -1
+                                },
+                                valueRange = 0f..1f,
+                                steps = 15,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            if (hapticsStrength == "custom") {
+                                val dur = (10 + customIntensity * 70).toLong().coerceIn(10, 80)
+                                val amp = (40  + (customIntensity * 215)).toInt().coerceIn(40, 255)
+                                try {
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+                                        vm.defaultVibrator.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        val v = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                                        v.vibrate(VibrationEffect.createOneShot(dur, amp))
+                                    }
+                                } catch (_: Exception) {}
+                            } else {
+                                triggerPreviewVibration(hapticsStrength)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(50)
+                    ) {
+                        Icon(Icons.Rounded.Vibration, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.preview_haptic))
+                    }
+                }
+            }
+        }
+    }
+
+    var visible by remember { mutableStateOf(false) }
+    val screenAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(350),
+        label = "soundAlpha"
+    )
+    LaunchedEffect(Unit) { visible = true }
+
+    val rotation =
+        (context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val isRotation90 = rotation == if (isLtr) Surface.ROTATION_90 else Surface.ROTATION_270
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                windowInsets = WindowInsets.systemBars.only(
+                    if (isRotation90) WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    else WindowInsetsSides.Top
+                ),
+                title = { Title(stringResource(R.string.sound_and_vibration)) },
+                navigationIcon = {
+                    NavigationIcon(onClick = { navigator.navigateUp() })
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    start = 0.dp,
+                    end = 0.dp,
+                    bottom = 0.dp
+                )
+                .alpha(screenAlpha),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            item {
+                SmartAnimatedSection(delayMs = 80L) {
+                    SmartExpressiveCard {
+                        SmartListItem(
+                            headline = stringResource(R.string.ringtone_settings),
+                            supporting = stringResource(R.string.system_settings),
+                            leadingIcon = Icons.Rounded.RingVolume,
+                            iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+                            iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+                            trailingIcon = Icons.Default.ChevronRight,
+                            onClick = { context.startActivity(Intent(Settings.ACTION_SOUND_SETTINGS)) }
+                        )
+                    }
+                }
+            }
+
+            // ── Dialpad ─────────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 0L) {
+                    Column {
+                        SettingsSectionLabel(stringResource(R.string.keypad))
+                        SmartExpressiveCard {
+                            SmartSwitchListItem(
+                                headline = stringResource(R.string.dialpad_tones),
+                                supporting = stringResource(R.string.dialpad_tones_subtitle),
+                                leadingIcon = Icons.Rounded.Audiotrack,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkGreen,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorGreen,
+                                checked = dtmfTone,
+                                onCheckedChange = {
+                                    dtmfTone = it
+                                    prefs.setBoolean(PreferenceManager.KEY_DTMF_TONE, it)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Call ─────────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 0L) {
+                    Column {
+                        SettingsSectionLabel(stringResource(R.string.calls))
+                        SmartExpressiveCard {
+                            SmartSwitchListItem(
+                                headline = stringResource(R.string.vibrate_on_answer),
+                                supporting = stringResource(R.string.vibrate_on_answer_subtitle),
+                                leadingIcon = Icons.AutoMirrored.Rounded.CallReceived,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkGreen,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorGreen,
+                                checked = vibrateOnAnswer,
+                                onCheckedChange = {
+                                    vibrateOnAnswer = it
+                                    prefs.setBoolean(PreferenceManager.KEY_VIBRATE_ON_ANSWER, it)
+                                }
+                            )
+                            SmartSwitchListItem(
+                                headline = stringResource(R.string.vibrate_on_hang_up),
+                                supporting = stringResource(R.string.vibrate_on_hang_up_subtitle),
+                                leadingIcon = Icons.Rounded.CallEnd,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkGreen,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorGreen,
+                                checked = vibrateOnHangup,
+                                onCheckedChange = {
+                                    vibrateOnHangup = it
+                                    prefs.setBoolean(PreferenceManager.KEY_VIBRATE_ON_HANGUP, it)
+                                }
+                            )
+
+                            val flashSubtitle = if (flashOnCallEnabled) {
+                                stringResource(R.string.on) + " · " + if (flashOnCallMode == 0) stringResource(R.string.flash_mode_always) else stringResource(R.string.flash_mode_silent_vibrate)
+                            } else stringResource(R.string.off)
+                            SmartListItem(
+                                headline = stringResource(R.string.flash_on_call),
+                                supporting = flashSubtitle,
+                                leadingIcon = Icons.Rounded.FlashOn,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+                                trailingIcon = Icons.Default.ChevronRight,
+                                onClick = { showFlashDialog = true }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Haptics Across App ───────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 80L) {
+                    Column {
+                        SettingsSectionLabel(stringResource(R.string.haptics_across_app))
+                        SmartExpressiveCard {
+                            val tapHapticsValue = when(hapticsStrength) {
+                                "light" -> stringResource(R.string.haptics_soft)
+                                "strong" -> stringResource(R.string.haptics_strong)
+                                else -> (prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f) * 100)
+                                    .toString().substringBefore(".") + "%"
+                            }
+                            val tapHapticsSubtitle = if (tapHapticsEnabled) {
+                                stringResource(R.string.on) + " · " + stringResource(R.string.haptics_intensity) + ": $tapHapticsValue"
+                            } else stringResource(R.string.off)
+                            SmartListItem(
+                                headline   = stringResource(R.string.tap_haptics),
+                                supporting = tapHapticsSubtitle,
+                                leadingIcon = Icons.Rounded.Vibration,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkOrange,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorOrange,
+                                trailingIcon = Icons.Default.ChevronRight,
+                                onClick = { showHapticsDialog = true }
+                            )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.scroll_haptics),
+                                supporting = stringResource(R.string.scroll_haptics_subtitle),
+                                leadingIcon = Icons.Rounded.SwipeVertical,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkOrange,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorOrange,
+                                checked = scrollHapticsEnabled,
+                                onCheckedChange = {
+                                    scrollHapticsEnabled = it
+                                    prefs.setBoolean(PreferenceManager.KEY_SCROLL_HAPTICS, it)
+                                }
+                            )
+                            AnimatedVisibility(visible = scrollHapticsEnabled) {
+                                Column(
+                                    modifier = Modifier
+                                        .background(
+                                            color = cardColor,
+                                            shape = RoundedCornerShape(cardCornerExtraSmall)
+                                        )
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val cmLabel = stringResource(R.string.haptic_interval_value).format(scrollCmPerHaptic)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.haptic_interval),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Surface(
+                                            modifier = Modifier.combinedClickable(
+                                                onClick = { scrollCmPerHaptic = 1.5f },
+                                                interactionSource = null,
+                                                indication = null,
+                                            ),
+                                            shape = RoundedCornerShape(50),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                text = cmLabel,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                    Slider(
+                                        value = scrollCmPerHaptic,
+                                        onValueChange = { v ->
+                                            val snapped = (v * 10f).roundToInt() / 10f
+                                            scrollCmPerHaptic = snapped
+                                            prefs.setFloat(PreferenceManager.KEY_SCROLL_CM_PER_HAPTIC, snapped)
+                                        },
+                                        valueRange = 0.5f..5.0f,
+                                        steps = 44,
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+                                    )
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.haptic_strength),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Surface(
+                                            modifier = Modifier.combinedClickable(
+                                                onClick = { scrollHapticStrength = 60 },
+                                                interactionSource = null,
+                                                indication = null,
+                                            ),
+                                            shape = RoundedCornerShape(50),
+                                            color = MaterialTheme.colorScheme.primaryContainer
+                                        ) {
+                                            Text(
+                                                text = scrollHapticStrength.toString(),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                                            )
+                                        }
+                                    }
+                                    Slider(
+                                        value = scrollHapticStrength.toFloat(),
+                                        onValueChange = { v ->
+                                            val snapped = v.roundToInt().coerceIn(1, 255)
+                                            scrollHapticStrength = snapped
+                                            prefs.setInt(PreferenceManager.KEY_SCROLL_HAPTIC_STRENGTH, snapped)
+                                        },
+                                        valueRange = 1f..255f,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item { SettingsBottomPadding() }
+        }
+    }
+}

@@ -1,0 +1,169 @@
+package dev.phoenix365.smartdialer.view.screen.settings
+
+import android.content.Context
+import android.view.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.CallEnd
+import androidx.compose.material.icons.rounded.CallToAction
+import androidx.compose.material.icons.rounded.Dialpad
+import androidx.compose.material.icons.rounded.SmartButton
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.view.components.NavigationIcon
+import dev.phoenix365.smartdialer.view.components.SmartAnimatedSection
+import dev.phoenix365.smartdialer.view.components.SmartExpressiveCard
+import dev.phoenix365.smartdialer.view.components.SmartSwitchListItem
+import dev.phoenix365.smartdialer.view.theme.color_call_button
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.view.components.Title
+import dev.phoenix365.smartdialer.view.theme.customColors
+import org.koin.compose.koinInject
+
+private data class LgElement(
+    val key: String,
+    val headline: String,
+    val supporting: String,
+    val icon: ImageVector,
+    val iconColor: Color,
+    val iconBgColor: Color,
+    val default: Boolean
+)
+
+@Composable
+private fun rememberLgElements(): List<LgElement> {
+    val customColors = MaterialTheme.colorScheme.customColors
+    val bottomNavigationBar = stringResource(R.string.bottom_navigation_bar)
+    val bottomNavigationBarSubtitle = stringResource(R.string.liquid_glass_bottom_navigation_bar)
+    val callScreen = stringResource(R.string.call_screen)
+    val callScreenSubtitle = stringResource(R.string.liquid_glass_call_screen)
+    val dialpad = stringResource(R.string.keypad)
+    val dialpadSubtitle = stringResource(R.string.liquid_glass_dialpad)
+    return remember(customColors) {
+        listOf(
+            LgElement(
+                key = PreferenceManager.KEY_LG_BOTTOM_NAV,
+                headline = bottomNavigationBar,
+                supporting = bottomNavigationBarSubtitle,
+                icon = Icons.Rounded.CallToAction,
+                iconColor = customColors.colorDarkAmber,
+                iconBgColor = customColors.colorAmber,
+                default = true
+            ),
+            LgElement(
+                key = PreferenceManager.KEY_LG_CALL_SCREEN,
+                headline = callScreen,
+                supporting = callScreenSubtitle,
+                icon = Icons.Rounded.CallEnd,
+                iconColor = customColors.colorDarkGreen,
+                iconBgColor = customColors.colorGreen,
+                default = true
+            ),
+            LgElement(
+                key = PreferenceManager.KEY_LG_DIALPAD,
+                headline = dialpad,
+                supporting = dialpadSubtitle,
+                icon = Icons.Rounded.Dialpad,
+                iconColor = customColors.colorDarkGreen,
+                iconBgColor = customColors.colorGreen,
+                default = false
+            ),
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Destination<RootGraph>
+@Composable
+fun LiquidGlassElementsScreen(navigator: DestinationsNavigator) {
+    val prefs = koinInject<PreferenceManager>()
+    val lgElements = rememberLgElements()
+
+    val states = remember(lgElements) {
+        lgElements.associate { el ->
+            el.key to mutableStateOf(prefs.getBoolean(el.key, el.default))
+        }
+    }
+
+    val context = LocalContext.current
+    val rotation =
+        (context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val isRotation90 = rotation == if (isLtr) Surface.ROTATION_90 else Surface.ROTATION_270
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                windowInsets = WindowInsets.systemBars.only(
+                    if (isRotation90) WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    else WindowInsetsSides.Top
+                ),
+                title = { Title(stringResource(R.string.liquid_glass_elements)) },
+                navigationIcon = {
+                    NavigationIcon(onClick = { navigator.navigateUp() })
+                }
+            )
+        }
+    ) { padding ->
+        androidx.compose.foundation.lazy.LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    start = 0.dp,
+                    end = 0.dp,
+                    bottom = 0.dp
+                )
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(vertical = 12.dp)
+        ) {
+            item {
+                SmartAnimatedSection(delayMs = 0L) {
+                    Text(
+                        text = stringResource(R.string.liquid_glass_elements_subtitle),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    )
+                }
+            }
+
+            item {
+                SmartAnimatedSection(delayMs = 40L) {
+                    SmartExpressiveCard {
+                        lgElements.forEachIndexed { index, element ->
+                            val checked by states[element.key]!!
+                            SmartSwitchListItem(
+                                headline = element.headline,
+                                supporting = element.supporting,
+                                leadingIcon = element.icon,
+                                iconContainerColor = element.iconColor,
+                                iconBgContainerColor = element.iconBgColor,
+                                checked = checked,
+                                onCheckedChange = { newValue ->
+                                    states[element.key]!!.value = newValue
+                                    prefs.setBoolean(element.key, newValue)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            item { SettingsBottomPadding() }
+        }
+    }
+}

@@ -1,0 +1,278 @@
+package dev.phoenix365.smartdialer.modal.repository
+
+import android.content.ComponentName
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Context
+import android.database.Cursor
+import android.provider.CallLog
+import android.telecom.PhoneAccountHandle
+import android.telecom.TelecomManager
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.controller.util.normalizePhoneNumber
+import dev.phoenix365.smartdialer.modal.`interface`.ICallLogRepository
+import dev.phoenix365.smartdialer.modal.data.CallLogEntry
+import dev.phoenix365.smartdialer.modal.data.Contact
+import dev.phoenix365.smartdialer.modal.`interface`.IContactsRepository
+import androidx.core.net.toUri
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.modal.data.getDisplayName
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+
+class CallLogRepository(
+    private val context: Context,
+    private val contentResolver: ContentResolver,
+    private val contactsRepo: IContactsRepository,
+    private val preferenceManager: PreferenceManager
+) : ICallLogRepository {
+
+    private val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+
+    private var cachedContactMap: Map<String, Contact>? = null
+    private var lastContactMapUpdate = 0L
+    private val CONTACT_MAP_TTL = 60_000L // 1 minute
+    private val contactMapMutex = Mutex()
+
+    override suspend fun getCallLogs(): List<CallLogEntry> = withContext(Dispatchers.IO) {
+        val callLogs = mutableListOf<CallLogEntry>()
+
+
+        val contactMap = contactMapMutex.withLock {
+            val now = System.currentTimeMillis()
+            if (cachedContactMap != null && now - lastContactMapUpdate < CONTACT_MAP_TTL) {
+                cachedContactMap!!
+            } else {
+                // Optimization: Fetch all contacts once for quick lookup
+                val allContacts = try { contactsRepo.getContacts() } catch (e: Exception) { emptyList() }
+                val map = mutableMapOf<String, Contact>()
+                allContacts.forEach { contact ->
+                    contact.phoneNumbers.forEach { number ->
+                        val normalized = normalizePhoneNumber(number)
+                        // Use last 10 digits as key for flexible matching (local vs international)
+                        val key = if (normalized.length >= 10) normalized.takeLast(10) else normalized
+                        map[key] = contact
+                    }
+                }
+                cachedContactMap = map
+                lastContactMapUpdate = now
+                map
+            }
+        }
+
+        val baseProjection = mutableListOf(
+            CallLog.Calls._ID,
+            CallLog.Calls.NUMBER,
+            CallLog.Calls.CACHED_NAME,
+            CallLog.Calls.CACHED_PHOTO_URI,
+            CallLog.Calls.CACHED_LOOKUP_URI,
+            CallLog.Calls.TYPE,
+            CallLog.Calls.DATE,
+            CallLog.Calls.DURATION
+        )
+
+        baseProjection.add("phone_account_label")
+        baseProjection.add(CallLog.Calls.PHONE_ACCOUNT_ID)
+        baseProjection.add(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME)
+
+        try {
+            val cursor = contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                baseProjection.toTypedArray(),
+                null,
+                null,
+                "${CallLog.Calls.DATE} DESC"
+            )
+
+            cursor?.use { parseCursor(it, callLogs, contactMap) }
+        } catch (e: Exception) {
+            // If the above fails due to "phone_account_label" or other columns, try a safer subset
+            try {
+                val safeProjection = arrayOf(
+                    CallLog.Calls._ID, CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME,
+                    CallLog.Calls.CACHED_PHOTO_URI, CallLog.Calls.CACHED_LOOKUP_URI,
+                    CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION,
+                    CallLog.Calls.PHONE_ACCOUNT_ID, CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME
+                )
+                val cursor = contentResolver.query(
+                    CallLog.Calls.CONTENT_URI,
+                    safeProjection,
+                    null,
+                    null,
+                    "${CallLog.Calls.DATE} DESC"
+                )
+                cursor?.use { parseCursor(it, callLogs, contactMap) }
+            } catch (e2: Exception) {
+                e2.printStackTrace()
+            }
+        }
+
+        callLogs
+    }
+
+    override suspend fun saveCallLog(entry: CallLogEntry) = withContext(Dispatchers.IO) {
+        val values = ContentValues().apply {
+            put(CallLog.Calls.NUMBER, entry.number)
+            put(CallLog.Calls.TYPE, entry.type)
+            put(CallLog.Calls.DATE, entry.date)
+            put(CallLog.Calls.DURATION, entry.duration)
+            put(CallLog.Calls.NEW, 1)
+        }
+        try {
+            contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        Unit
+    }
+
+    private fun contactIdFromLookupUri(lookupUri: String): String? {
+        return try {
+            val segments = lookupUri.toUri().pathSegments
+            segments.lastOrNull { it.toLongOrNull() != null } ?: segments.lastOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun parseCursor(cursor: Cursor, callLogs: MutableList<CallLogEntry>, contactMap: Map<String, Contact>) {
+        val idIdx = cursor.getColumnIndex(CallLog.Calls._ID)
+        val numberIdx = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+        val cachedNameIdx = cursor.getColumnIndex(CallLog.Calls.CACHED_NAME)
+        val cachedPhotoIdx = cursor.getColumnIndex(CallLog.Calls.CACHED_PHOTO_URI)
+        val cachedLookupIdx = cursor.getColumnIndex(CallLog.Calls.CACHED_LOOKUP_URI)
+        val typeIdx = cursor.getColumnIndex(CallLog.Calls.TYPE)
+        val dateIdx = cursor.getColumnIndex(CallLog.Calls.DATE)
+        val durationIdx = cursor.getColumnIndex(CallLog.Calls.DURATION)
+
+        val labelIdx = cursor.getColumnIndex("phone_account_label")
+        val accountIdIdx = cursor.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_ID)
+        val componentNameIdx = cursor.getColumnIndex(CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME)
+
+        val tempLogs = mutableListOf<CallLogEntry>()
+        val simCache = mutableMapOf<String, String>()
+        val unknownLabel = context.getString(R.string.label_unknown)
+
+        val displayOrder = preferenceManager.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0)
+
+        while (cursor.moveToNext()) {
+            val callId = cursor.getLong(idIdx)
+            val number = cursor.getString(numberIdx) ?: unknownLabel
+            val type = cursor.getInt(typeIdx)
+            val date = cursor.getLong(dateIdx)
+            val duration = cursor.getLong(durationIdx)
+
+            var simLabel = if (labelIdx != -1) cursor.getString(labelIdx) else null
+
+            val isBlocked = type == CallLog.Calls.BLOCKED_TYPE// || type == CallLog.Calls.REJECTED_TYPE
+
+            // If label is missing, try to resolve it from account ID
+            if (simLabel.isNullOrEmpty() && accountIdIdx != -1 && componentNameIdx != -1) {
+                val accountId = cursor.getString(accountIdIdx)
+                val componentStr = cursor.getString(componentNameIdx)
+
+                if (!accountId.isNullOrEmpty() && !componentStr.isNullOrEmpty()) {
+                    simLabel = simCache.getOrPut("$componentStr/$accountId") {
+                        try {
+                            val componentName = ComponentName.unflattenFromString(componentStr)
+                            if (componentName != null) {
+                                val handle = PhoneAccountHandle(componentName, accountId)
+                                telecomManager?.getPhoneAccount(handle)?.label?.toString() ?: ""
+                            } else ""
+                        } catch (e: Exception) { "" }
+                    }
+                }
+            }
+
+            if (simLabel?.isEmpty() == true) simLabel = null
+
+            // Enrich with contact data
+            val normalizedNum = normalizePhoneNumber(number)
+            val lookupKey = if (normalizedNum.length >= 10) normalizedNum.takeLast(10) else normalizedNum
+            val matchedContact = contactMap[lookupKey]
+
+//            val displayName = matchedContact?.displayName ?: cursor.getString(cachedNameIdx)
+            val photoUri = matchedContact?.photoUri ?: cursor.getString(cachedPhotoIdx)
+            val contactId = matchedContact?.id ?: cursor.getString(cachedLookupIdx)?.let {
+                contactIdFromLookupUri(it)
+            }
+
+            val contactName = if (matchedContact != null) getDisplayName(matchedContact, displayOrder) else null //matchedContact?.displayName
+            val cachedName = cursor.getString(cachedNameIdx) // cached name from CallLog
+            val phoneDetails = matchedContact?.phoneDetails?.firstOrNull { normalizePhoneNumber(it.number) == normalizedNum }
+            val phoneType = phoneDetails?.type
+            val phoneLabel = phoneDetails?.label
+
+//                val isCallerIdName = contactName == null && cachedName != null
+            val isCallerIdName = contactName.isNullOrEmpty() && !cachedName.isNullOrEmpty()
+            val displayName = when {
+                !contactName.isNullOrEmpty() -> contactName
+                !cachedName.isNullOrEmpty() -> cachedName
+                else -> number
+            }
+
+            val lastEntry = tempLogs.lastOrNull()
+            if (lastEntry != null && lastEntry.number == number) {
+                tempLogs[tempLogs.size - 1] = lastEntry.copy(
+                    types = lastEntry.types + type,
+                    ids = lastEntry.ids + callId
+                )
+            } else {
+                tempLogs.add(
+                    CallLogEntry(
+                        id = callId,
+                        number = number,
+                        name = displayName,
+                        type = type,
+                        date = date,
+                        duration = duration,
+                        photoUri = photoUri,
+                        contactId = contactId,
+                        simLabel = simLabel,
+                        isBlocked = isBlocked,
+                        types = listOf(type),
+                        ids = listOf(callId),
+                        isCallerIdName = isCallerIdName,
+                        phoneType = phoneType,
+                        phoneLabel = phoneLabel
+                    )
+                )
+            }
+        }
+        callLogs.addAll(tempLogs)
+    }
+
+    override suspend fun deleteCallLog(number: String) = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.delete(
+                CallLog.Calls.CONTENT_URI,
+                "${CallLog.Calls.NUMBER} = ?",
+                arrayOf(number)
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        Unit
+    }
+
+    override suspend fun deleteCallLogsByIds(ids: List<Long>) = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext
+        try {
+            val selection = "${CallLog.Calls._ID} IN (${ids.joinToString(",")})"
+            contentResolver.delete(CallLog.Calls.CONTENT_URI, selection, null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override suspend fun clearCallLogs() = withContext(Dispatchers.IO) {
+        try {
+            contentResolver.delete(CallLog.Calls.CONTENT_URI, null, null)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        Unit
+    }
+}

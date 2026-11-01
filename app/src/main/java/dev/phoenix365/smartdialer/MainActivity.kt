@@ -1,0 +1,839 @@
+package dev.phoenix365.smartdialer
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.activity.compose.setContent
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.core.view.WindowCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.navigation.compose.rememberNavController
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.controller.CallActivity
+import dev.phoenix365.smartdialer.view.components.BottomBar
+import dev.phoenix365.smartdialer.liquidglass.LocalLiquidGlassBackdrop
+import dev.phoenix365.smartdialer.liquidglass.backdrops.rememberLayerBackdrop
+import dev.phoenix365.smartdialer.liquidglass.backdrops.layerBackdrop
+import dev.phoenix365.smartdialer.view.theme.SmartDialerTheme
+import dev.phoenix365.smartdialer.view.theme.TabTransitionStyle
+import com.ramcosta.composedestinations.DestinationsNavHost
+import com.ramcosta.composedestinations.generated.NavGraphs
+import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.DialPadScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import android.content.res.Configuration
+import android.os.Build
+import android.telecom.Call
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import android.view.Surface
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.automirrored.filled.StickyNote2
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Assistant
+import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Assistant
+import androidx.compose.material.icons.rounded.AccessTime
+import androidx.compose.material.icons.rounded.AccessTimeFilled
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import dev.phoenix365.smartdialer.controller.util.isAlreadyDefaultDialer
+import dev.phoenix365.smartdialer.view.screen.onboarding.MorphingOnboardingScreen
+import dev.phoenix365.smartdialer.view.theme.MyColors.bottomBarColor
+import com.ramcosta.composedestinations.generated.destinations.AboutAppScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.AppIconScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.AvatarsPreferenceScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.BiometricScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.BlockedNumbersScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.BlurEffectsElementsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.CallSettingScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.CallerUIScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactManagementScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactMergeDuplicatesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactSelectionScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactUnmergeDuplicatesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactVisibilityScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContributorsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.DefaultDialerScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.FavoritesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.InterfaceScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.LiquidGlassElementsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.NavigationScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.NotesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.PrivateContactsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.RecentScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SearchScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SoundVibrationScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SpamScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.UpdatesScreenDestination
+import dev.phoenix365.smartdialer.controller.CallViewModel
+import dev.phoenix365.smartdialer.controller.MainViewModel
+import dev.phoenix365.smartdialer.controller.NavigationTarget
+import dev.phoenix365.smartdialer.controller.PurchaseHelper
+import dev.phoenix365.smartdialer.controller.lock.AppLockManager
+import dev.phoenix365.smartdialer.controller.util.fetchLatestRelease
+import dev.phoenix365.smartdialer.controller.util.isNewerVersion
+import dev.phoenix365.smartdialer.view.components.TabSpec
+import dev.phoenix365.smartdialer.view.components.UpdateAvailableDialog
+import dev.phoenix365.smartdialer.view.components.parseTabOrder
+import dev.phoenix365.smartdialer.view.components.performAppHaptic
+import dev.phoenix365.smartdialer.view.theme.color_call_button
+import dev.phoenix365.smartdialer.view.theme.isLandscapeMode
+import kotlinx.coroutines.delay
+import org.koin.android.ext.android.inject
+import org.koin.androidx.viewmodel.ext.android.viewModel
+import org.koin.core.context.GlobalContext
+import kotlin.time.Duration.Companion.milliseconds
+
+class MainActivity : FragmentActivity() {
+    private var intentState by mutableStateOf<Intent?>(null)
+//    private lateinit var prefs: PreferenceManager
+    private val prefs: PreferenceManager by inject()
+    private val callViewModel: CallViewModel by viewModel()
+    private val mainViewModel: MainViewModel by viewModel()
+    private var isAppLocked by mutableStateOf(false)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
+        intentState = intent
+        // enableEdgeToEdge() triggers Adreno GPU driver SIGSEGV on first RenderThread draw.
+        // Edge-to-edge is set via theme XML instead (windowDrawsSystemBarBackgrounds etc.).
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+//        prefs = GlobalContext.get().get<PreferenceManager>()
+
+        if (AppLockManager.isLocked(prefs)) {
+            isAppLocked = true
+        }
+
+        setContent {
+            SmartDialerTheme {
+                val context = LocalContext.current
+                val navController = rememberNavController()
+                val settingsVer by prefs.settingsChanged.collectAsStateWithLifecycle()
+
+                val favouritesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, false)
+                val contactsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
+                val notesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_NOTES, false)
+                val searchEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SEARCH, false)
+                val settingsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SETTINGS, true)
+                val dialpadEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_DIALPAD, true)
+                val defaultTab = prefs.getString(PreferenceManager.KEY_DEFAULT_TAB, "calls") ?: "calls"
+
+//                val defBar = prefs.getInt(PreferenceManager.KEY_DEFAULT_BOTTOM_NAV, 0)
+//                val transitionStyle = prefs.getInt(PreferenceManager.KEY_TRANSITION_STYLE, 0)
+                val onboardingShown = remember { prefs.getBoolean(PreferenceManager.KEY_ONBOARDING_SHOWN, false) }
+                var showOnboarding by remember { mutableStateOf(!onboardingShown) }
+                val appLockEnabled = remember(settingsVer) { prefs.isAppLockEnabled() }
+
+                // ── Biometric overlay (above blur, inside Box) ─────────
+                if (isAppLocked && appLockEnabled) {
+                    val biometricType = remember(settingsVer) { prefs.getString(PreferenceManager.KEY_BIOMETRICS_TYPE, "") ?: "" }
+                    if (biometricType.isNotEmpty()) {
+                        when (biometricType) {
+                            "system" -> {
+                                val activity = this@MainActivity
+                                val titleText = stringResource(R.string.verify_your_identity_to_continue)
+                                LaunchedEffect(Unit) {
+                                    AppLockManager.authenticate(
+                                        activity = activity,
+                                        title = titleText,
+                                        onSuccess = {
+                                            isAppLocked = false
+                                        },
+                                        onError = { code, _ ->
+                                            // Code 5 = ERROR_CANCELED (the user clicked ‘Cancel’)
+                                            if (code != 5) {
+                                                activity.finish()
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+                            "pin" -> {
+                                dev.phoenix365.smartdialer.view.screen.settings.PinSetupDialog(
+                                    title = stringResource(R.string.enter_pin), isVerify = true,
+                                    expectedPin = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PIN, "") ?: "",
+                                    onConfirm = { isAppLocked = false },
+                                    onDismiss = { finish() }
+                                )
+                            }
+                            "password" -> {
+                                dev.phoenix365.smartdialer.view.screen.settings.PasswordSetupDialog(
+                                    title = stringResource(R.string.enter_password), isVerify = true,
+                                    expectedPassword = prefs.getString(PreferenceManager.KEY_BIOMETRICS_PASSWORD, "") ?: "",
+                                    onConfirm = { isAppLocked = false },
+                                    onDismiss = { finish() }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (showOnboarding) {
+                    MorphingOnboardingScreen(
+                        onFinished = {
+                            prefs.setBoolean(PreferenceManager.KEY_ONBOARDING_SHOWN, true)
+                            showOnboarding = false
+                        }
+                    )
+                } else {
+                    // Resolve the configured startup tab. Done once so no flash.
+                    val lastOpenedTab = prefs.getString(PreferenceManager.KEY_LAST_OPENED_TAB, null)
+                    val startDestination = remember {
+                        val isDefaultDialer = isAlreadyDefaultDialer(this@MainActivity)
+                        val isMainLauncher = intentState?.action == null || intentState?.action == Intent.ACTION_MAIN
+                        if (!isDefaultDialer && isMainLauncher) {
+                            DefaultDialerScreenDestination
+                        } else {
+                            when (defaultTab) {
+                                "last" -> {
+                                    when {
+                                        lastOpenedTab == null -> RecentScreenDestination
+                                        lastOpenedTab.contains(FavoritesScreenDestination.route) && favouritesEnabled -> FavoritesScreenDestination
+                                        lastOpenedTab.contains(ContactScreenDestination.route) && contactsEnabled -> ContactScreenDestination
+                                        lastOpenedTab.contains(NotesScreenDestination.route) && notesEnabled -> NotesScreenDestination()
+                                        lastOpenedTab.contains(DialPadScreenDestination.route) && dialpadEnabled -> DialPadScreenDestination()
+                                        lastOpenedTab.contains(SearchScreenDestination.route) && searchEnabled -> SearchScreenDestination()
+                                        else -> RecentScreenDestination
+                                    }
+                                }
+                                "favorites" -> if (favouritesEnabled) FavoritesScreenDestination else RecentScreenDestination
+                                "contacts" -> if (contactsEnabled) ContactScreenDestination else RecentScreenDestination
+                                "notes" -> if (notesEnabled) NotesScreenDestination() else RecentScreenDestination
+                                "dialpad" -> DialPadScreenDestination(initialNumber = "")
+                                "search" -> SearchScreenDestination()
+                                "settings" -> SettingsScreenDestination
+                                else -> RecentScreenDestination
+                            }
+                        }
+                    }
+
+                    var autoUpdateVersion by remember { mutableStateOf<String?>(null) }
+                    var autoUpdateApkUrl by remember { mutableStateOf<String?>(null) }
+                    var showAutoUpdateDialog by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(Unit) {
+                        val isPhoenix = BuildConfig.FLAVOR == "phoenix"
+                        if (isPhoenix) {
+                            val autoCheck = prefs.getBoolean(PreferenceManager.KEY_AUTO_UPDATE_CHECK, true)
+                            if (autoCheck) {
+                                val release = fetchLatestRelease(GITHUB_API_RELEASES)
+                                if (release != null && isNewerVersion(release.tagName, APP_VERSION)) {
+                                    autoUpdateVersion = release.tagName
+                                    autoUpdateApkUrl = release.apkUrl
+                                    showAutoUpdateDialog = true
+                                }
+                            }
+                        }
+                    }
+
+                    if (showAutoUpdateDialog) {
+                        UpdateAvailableDialog(
+                            currentVersion = APP_VERSION,
+                            latestVersion = autoUpdateVersion ?: "",
+                            readyToInstall = false,
+                            onAction = {
+                                showAutoUpdateDialog = false
+                                navController.navigate(UpdatesScreenDestination.route)
+                            },
+                            onDismiss = { showAutoUpdateDialog = false }
+                        )
+                    }
+
+                    // ── Biometric blur + lock ─────────────────────────────────
+                    val isBlurSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    val blurRadius by animateDpAsState(
+                        targetValue = if (isAppLocked) 26.dp else 0.dp,
+                        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+                        label = "biometricBlur"
+                    )
+                    val scrimColor by animateColorAsState(
+                        targetValue = if (isAppLocked) Color.Black.copy(alpha = 0.95f) else Color.Transparent,
+                        animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing),
+                        label = "scrimColor"
+                    )
+
+                    // ── Ongoing Call Banner + Main nav host ───────────────────────
+                    val callSession by callViewModel.currentCallSession.collectAsStateWithLifecycle()
+                    val hasOngoingCall = callSession != null &&
+                            callSession?.state != Call.STATE_RINGING &&
+                            callSession?.state != Call.STATE_DISCONNECTED &&
+                            callSession?.state != Call.STATE_DISCONNECTING
+
+                    var showCallBanner by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(hasOngoingCall) {
+                        if (hasOngoingCall) {
+                            // A delay to ensure no banner appears before the call screen opens
+                            delay(2000.milliseconds)
+                            showCallBanner = true
+                        } else {
+                            showCallBanner = false
+                        }
+                    }
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Main content — blurred when locked
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .then(
+                                    if (isBlurSupported && blurRadius > 0.dp)
+                                        Modifier.blur(blurRadius, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                                    else
+                                        Modifier
+                                )
+                        ) {
+                            // ── Ongoing Call Banner (above all content) ────────────
+                            AnimatedVisibility(
+                                visible = showCallBanner,
+                                enter = slideInVertically { -it } + fadeIn(),
+                                exit = slideOutVertically { -it } + fadeOut()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(color_call_button)
+                                        .statusBarsPadding()
+                                        .clickable {
+                                            startActivity(
+                                                Intent(
+                                                    this@MainActivity,
+                                                    CallActivity::class.java
+                                                ).apply {
+                                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                                                }
+                                            )
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Call,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.call_is_ongoing),
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+
+                            // ── Main nav host + adaptive nav (bottom bar / rail) ───
+                            val configuration = LocalConfiguration.current
+                            val isLandscape =
+                                configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+                            isLandscapeMode = isLandscape
+                            val navBackStack by navController.currentBackStackEntryAsState()
+                            val currentDest = navBackStack?.destination
+                            val prefs2 = remember { GlobalContext.get().get<PreferenceManager>() }
+                            val showFavoritesRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, false)
+                            val showCallsRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_CALLS,     true)
+                            val showContactsRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
+                            val showDialpadRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_DIALPAD, true)
+                            val showNotesRail = prefs2.getBoolean(PreferenceManager.KEY_TAB_SHOW_NOTES, false)
+                            val tabOrder = parseTabOrder(prefs2.getString(PreferenceManager.KEY_TAB_ORDER, null))
+
+                            val isFavoritesSelected = currentDest?.hierarchy?.any { it.route == FavoritesScreenDestination.route }  == true
+                            val isRecentsSelected   = currentDest?.hierarchy?.any { it.route == RecentScreenDestination.route }     == true
+                            val isContactsSelected  = currentDest?.hierarchy?.any { it.route == ContactScreenDestination.route }    == true
+                            val isDialpadSelected   = currentDest?.hierarchy?.any { it.route == DialPadScreenDestination.route }    == true
+                            val isNotesSelected     = currentDest?.hierarchy?.any { it.route == NotesScreenDestination.route }      == true
+
+                            fun saveCurrentTab(route: String) {
+                                when {
+                                    route.contains(FavoritesScreenDestination.route) ->
+                                        prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, FavoritesScreenDestination.route)
+
+                                    route.contains(ContactScreenDestination.route) ->
+                                        prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, ContactScreenDestination.route)
+
+                                    route.contains(NotesScreenDestination.route) ->
+                                        prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, NotesScreenDestination.route)
+
+                                    route.contains(DialPadScreenDestination.route) ->
+                                        prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, DialPadScreenDestination.route)
+
+                                    route.contains(SearchScreenDestination.route) ->
+                                        prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, SearchScreenDestination.route)
+
+                                    else -> prefs.setString(PreferenceManager.KEY_LAST_OPENED_TAB, RecentScreenDestination.route)
+                                }
+                            }
+
+                            LaunchedEffect(currentDest) {
+                                currentDest?.route?.let { route ->
+                                    saveCurrentTab(route)
+                                }
+                            }
+
+                            fun navTo(route: String) {
+                                saveCurrentTab(route)
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+
+                            fun doHaptic() {
+                                if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
+                                    performAppHaptic(
+                                        context,
+                                        prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
+                                        prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
+                                    )
+                                }
+                            }
+
+                            if (isLandscape && isAlreadyDefaultDialer(this@MainActivity)) {
+                                val ctx = LocalContext.current
+
+                                val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+                                @Suppress("DEPRECATION")
+                                val rotation =
+                                    (ctx.getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+                                val isRotation90 = rotation == if (isLtr) Surface.ROTATION_90 else Surface.ROTATION_270
+                                val isRotation270 = rotation == if (isLtr) Surface.ROTATION_270 else Surface.ROTATION_90
+//                        val railPaddingStart = if (isRotation270) 10.dp else 0.dp
+//                        val railPaddingEnd   = if (isRotation90)  10.dp else 0.dp
+
+
+
+                                val houseIcon = ImageVector.vectorResource(id = R.drawable.ic_house_fill)
+                                val labelFavorites = stringResource(R.string.favorites)
+                                val labelRecents =
+                                    if (!showFavoritesRail && !showContactsRail) stringResource(R.string.home_tab)
+                                    else stringResource(R.string.recents)
+                                val labelContacts = stringResource(R.string.contacts)
+                                val labelKeypad = stringResource(R.string.keypad)
+                                val labelNotes = stringResource(R.string.notes)
+                                val orderedTabs: List<TabSpec> = remember(
+                                    tabOrder, showFavoritesRail, showCallsRail, showContactsRail, showDialpadRail, showNotesRail,
+                                    isFavoritesSelected, isRecentsSelected, isContactsSelected, isDialpadSelected, isNotesSelected
+                                ) {
+                                    tabOrder.mapNotNull { key ->
+                                        when (key) {
+                                            "favorites" -> if (showFavoritesRail) TabSpec(
+                                                key             = key,
+                                                route           = FavoritesScreenDestination.route,
+                                                selected        = isFavoritesSelected,
+                                                selectedIcon    = Icons.Filled.Assistant,
+                                                unselectedIcon  = Icons.Outlined.Assistant,
+                                                label           = labelFavorites,
+                                                onClick         = { doHaptic(); navTo(FavoritesScreenDestination.route) }
+                                            ) else null
+                                            "calls" -> if (showCallsRail) TabSpec(
+                                                key             = key,
+                                                route           = RecentScreenDestination.route,
+                                                selected        = isRecentsSelected,
+                                                selectedIcon    = if (!showFavoritesRail && !showContactsRail) houseIcon else Icons.Rounded.AccessTimeFilled,
+                                                unselectedIcon  = if (!showFavoritesRail && !showContactsRail) houseIcon else Icons.Rounded.AccessTime,
+                                                label           = labelRecents,
+                                                onClick         = { doHaptic(); navTo(RecentScreenDestination.route) }
+                                            ) else null
+                                            "contacts" -> if (showContactsRail) TabSpec(
+                                                key             = key,
+                                                route           = ContactScreenDestination.route,
+                                                selected        = isContactsSelected,
+                                                selectedIcon    = Icons.Filled.AccountCircle,
+                                                unselectedIcon  = Icons.Outlined.AccountCircle,
+                                                label           = labelContacts,
+                                                onClick         = { doHaptic(); navTo(ContactScreenDestination.route) }
+                                            ) else null
+                                            "dialpad" -> if (showDialpadRail) TabSpec(
+                                                key = key,
+                                                route = DialPadScreenDestination(initialNumber = "").route,
+                                                selected       = isDialpadSelected,
+                                                selectedIcon   = Icons.Filled.Dialpad,
+                                                unselectedIcon = Icons.Filled.Dialpad,
+                                                label          = labelKeypad,
+                                                onClick        = { doHaptic(); navTo(DialPadScreenDestination(initialNumber = "").route) }
+                                            ) else null
+                                            "notes" -> if (showNotesRail) TabSpec(
+                                                key            = key,
+                                                route          = NotesScreenDestination().route,
+                                                selected       = isNotesSelected,
+                                                selectedIcon   = Icons.AutoMirrored.Filled.StickyNote2,
+                                                unselectedIcon = Icons.AutoMirrored.Outlined.StickyNote2,
+                                                label          = labelNotes,
+                                                onClick        = { doHaptic(); navTo(NotesScreenDestination().route) }
+                                            ) else null
+                                            else -> null
+                                        }
+                                    }
+                                }
+
+                                val liquidGlassBackdropLandscape = rememberLayerBackdrop()
+                                CompositionLocalProvider(LocalLiquidGlassBackdrop provides liquidGlassBackdropLandscape) {
+                                    Row(modifier = Modifier.fillMaxSize()) {
+                                        Surface(
+                                            color = bottomBarColor,
+                                            modifier = Modifier.fillMaxHeight()
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxHeight()
+                                                    .then(
+                                                        if (isRotation90) {
+                                                            Modifier.windowInsetsPadding(
+                                                                WindowInsets.displayCutout/*.union(WindowInsets.systemBars)*/
+                                                            )
+                                                        } else {
+                                                            Modifier.windowInsetsPadding(WindowInsets.systemBars)
+                                                        }
+                                                    )
+                                                    .width(82.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    verticalArrangement = Arrangement.Center,
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    orderedTabs.forEach { tab ->
+                                                        RailItem(
+                                                            selected = tab.selected,
+                                                            icon = { sel ->
+                                                                Icon(
+                                                                    if (sel) tab.selectedIcon else tab.unselectedIcon,
+                                                                    tab.label,
+                                                                    modifier = Modifier.size(24.dp)
+                                                                )
+                                                            },
+                                                            onClick = tab.onClick
+                                                        )
+                                                    }
+
+                                                    Spacer(Modifier.height(8.dp))
+                                                    HorizontalDivider(
+                                                        modifier = Modifier.width(32.dp),
+                                                        color = MaterialTheme.colorScheme.outlineVariant.copy(
+                                                            alpha = 0.6f
+                                                        )
+                                                    )
+                                                    Spacer(Modifier.height(8.dp))
+
+                                                    RailItem(
+                                                        selected = currentDest?.hierarchy?.any { it.route?.contains("search", ignoreCase = true) == true } == true,
+                                                        icon = { _ ->
+                                                            Icon(
+                                                                Icons.Default.Search,
+                                                                stringResource(R.string.search),
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        },
+                                                        onClick = { navTo(SearchScreenDestination.route) }
+                                                    )
+                                                    RailItem(
+                                                        selected = currentDest?.hierarchy?.any {
+//                                                            it.route?.contains("settings", ignoreCase = true) == true ||
+                                                                    it.route == SettingsScreenDestination.route ||
+                                                                    it.route == AboutAppScreenDestination.route || it.route == AppIconScreenDestination.route ||
+                                                                    it.route == BiometricScreenDestination.route || it.route == BlockedNumbersScreenDestination.route ||
+                                                                    it.route == BlurEffectsElementsScreenDestination.route ||
+                                                                    it.route == CallerUIScreenDestination.route || it.route == CallSettingScreenDestination.route ||
+                                                                    it.route == ContributorsScreenDestination.route || it.route == InterfaceScreenDestination.route ||
+                                                                    it.route == LiquidGlassElementsScreenDestination.route || it.route == NavigationScreenDestination.route ||
+                                                                    it.route == SoundVibrationScreenDestination.route || it.route == SpamScreenDestination.route ||
+                                                                    it.route == ContactManagementScreenDestination.route || it.route == PrivateContactsScreenDestination.route ||
+                                                                    it.route == ContactVisibilityScreenDestination.route || it.route == ContactMergeDuplicatesScreenDestination.route ||
+                                                                    it.route == ContactUnmergeDuplicatesScreenDestination.route || it.route == AvatarsPreferenceScreenDestination.route
+                                                        } == true,
+                                                        icon = { sel ->
+                                                            Icon(
+                                                                if (sel) Icons.Default.Settings else ImageVector.vectorResource(id = R.drawable.ic_settings),
+                                                                stringResource(R.string.settings),
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                        },
+                                                        onClick = { navTo(SettingsScreenDestination.route) }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        // ── Main content fills the rest, edge-to-edge ──────────────────────
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .background(MaterialTheme.colorScheme.background)
+                                                .fillMaxHeight().then(
+                                                    if (isRotation270) {
+                                                        Modifier.windowInsetsPadding(WindowInsets.displayCutout)
+                                                    } else {
+                                                        Modifier.windowInsetsPadding(WindowInsets.systemBars)
+                                                    }
+                                                )
+                                        ) {
+                                            DestinationsNavHost(
+                                                navGraph = NavGraphs.root,
+                                                navController = navController,
+                                                start = startDestination,
+                                                defaultTransitions = TabTransitionStyle
+                                            )
+                                        }
+                                    }
+                                } // end CompositionLocalProvider landscape
+                            } else {
+                                val liquidGlassBackdrop = rememberLayerBackdrop()
+                                val showBottomBar =
+                                    showFavoritesRail || showContactsRail || showDialpadRail || notesEnabled || searchEnabled || settingsEnabled
+                                CompositionLocalProvider(LocalLiquidGlassBackdrop provides liquidGlassBackdrop) {
+                                    Scaffold(
+                                        bottomBar = { if (showBottomBar) BottomBar(navController) },
+                                        containerColor = MaterialTheme.colorScheme.surface,
+                                        contentWindowInsets = WindowInsets(0)
+                                    ) { scaffoldPadding ->
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(scaffoldPadding)
+                                                .layerBackdrop(liquidGlassBackdrop)
+                                                .then(
+                                                    if (showCallBanner)
+                                                        Modifier.consumeWindowInsets(WindowInsets.statusBars)
+                                                    else
+                                                        Modifier
+                                                )
+                                        ) {
+                                            DestinationsNavHost(
+                                                navGraph = NavGraphs.root,
+                                                navController = navController,
+                                                start = startDestination,
+                                                defaultTransitions = TabTransitionStyle
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            LaunchedEffect(Unit) {
+                                val isDefaultDialer = isAlreadyDefaultDialer(this@MainActivity)
+                                val isMainLauncher = intentState?.action == null || intentState?.action == Intent.ACTION_MAIN
+                                if (!isDefaultDialer && isMainLauncher) {
+                                    navController.navigate(DefaultDialerScreenDestination.route) {
+                                        popUpTo(ContactScreenDestination.route) {
+                                            inclusive = true
+                                        }
+                                    }
+                                }
+                            }
+
+                            LaunchedEffect(intentState) {
+                                handleIntent(intentState, navController)
+                            }
+                        }
+                        if (!isBlurSupported) Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(scrimColor)
+                        )
+                    } // end blurred Column
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        AppLockManager.onAppForegrounded(prefs)
+        if (AppLockManager.isLocked(prefs)) {
+            isAppLocked = true
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        AppLockManager.onAppBackgrounded()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intentState = intent
+
+        val purchaseHelper: PurchaseHelper = GlobalContext.get().get()
+        purchaseHelper.handleNewIntent(intent, this)
+    }
+
+    private fun handleIntent(intent: Intent?, navController: androidx.navigation.NavController) {
+        intent ?: return
+        val target = mainViewModel.getNavigationTarget(intent, this) ?: return
+        intentState = null
+
+        val requestedType = intent.type ?: when {
+            intent.data?.toString()?.contains("postals") == true -> "vnd.android.cursor.dir/postal-address_v2"
+            intent.data?.toString()?.contains("phones") == true -> "vnd.android.cursor.dir/phone_v2"
+            intent.data?.toString()?.contains("emails") == true -> "vnd.android.cursor.dir/email_v2"
+            else -> "vnd.android.cursor.dir/contact"
+        }
+
+        when (target) {
+            is NavigationTarget.Recents -> {
+                try {
+                    val telecomManager = getSystemService(TELECOM_SERVICE) as? android.telecom.TelecomManager
+                    @Suppress("MissingPermission")
+                    telecomManager?.cancelMissedCallsNotification()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                navController.navigate(RecentScreenDestination.route) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                        inclusive = false // Don't remove the home screen
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+
+                    // Disable the animation for instant opening from a notification
+                    anim {
+                        enter = 0
+                        exit = 0
+                        popEnter = 0
+                        popExit = 0
+                    }
+                }
+            }
+            is NavigationTarget.Dialpad -> {
+                navController.navigate(DialPadScreenDestination(initialNumber = target.number).route)
+            }
+            is NavigationTarget.ContactDetails -> {
+                val isExternalView = intent.action == Intent.ACTION_VIEW ||
+                        intent.action == "com.android.contacts.action.QUICK_CONTACT" ||
+                        intent.action == "android.provider.action.QUICK_CONTACT"
+
+                navController.navigate(ContactDetailsScreenDestination(
+                    contactId = target.contactId,
+                    isExternalView = isExternalView
+                ).route)
+            }
+            is NavigationTarget.ContactEdit -> {
+                navController.navigate(ContactEditScreenDestination(
+                    contactId = target.contactId,
+                    initialName = target.initialName,
+                    initialPhone = target.initialPhone,
+                    isExternalEdit = true
+                ).route) {
+                    launchSingleTop = true
+                    popUpTo(navController.graph.startDestinationId) {
+                        saveState = true
+                    }
+                }
+            }
+            is NavigationTarget.ContactSelection -> {
+                navController.navigate(ContactSelectionScreenDestination(
+                    returnContactId = true,
+                    isExternalPick = true,
+                    pickMimeType = requestedType
+                ).route)
+            }
+            is NavigationTarget.CallSetting -> {
+                navController.navigate(CallSettingScreenDestination().route)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RailItem(
+    selected: Boolean,
+    icon: @Composable (selected: Boolean) -> Unit,
+    label: String? = null,
+    paddingStart: Dp = 0.dp,
+    paddingEnd: Dp = 0.dp,
+    onClick: () -> Unit
+) {
+    val bgColor = if (selected)
+        MaterialTheme.colorScheme.primaryContainer
+    else
+        Color.Transparent
+    val contentColor = if (selected)
+        MaterialTheme.colorScheme.onPrimaryContainer
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(start = paddingStart, end = paddingEnd, top = 4.dp, bottom = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 56.dp, height = 36.dp)
+                .clip(RoundedCornerShape(50))
+                .background(bgColor),
+            contentAlignment = Alignment.Center
+        ) {
+            CompositionLocalProvider(
+                LocalContentColor provides contentColor
+            ) {
+                icon(selected)
+            }
+        }
+        if (label != null) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = contentColor,
+                maxLines = 1
+            )
+        }
+    }
+}

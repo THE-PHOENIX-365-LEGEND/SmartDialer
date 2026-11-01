@@ -1,0 +1,657 @@
+package dev.phoenix365.smartdialer.controller
+
+import android.accounts.Account
+import android.app.Application
+import android.net.Uri
+import dev.phoenix365.smartdialer.modal.`interface`.IContactsRepository
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.device_only
+import dev.phoenix365.smartdialer.modal.data.Contact
+import dev.phoenix365.smartdialer.modal.db.TrashedContactDao
+import dev.phoenix365.smartdialer.modal.db.TrashedContactEntity
+import dev.phoenix365.smartdialer.modal.repository.ContactsRepository
+import dev.phoenix365.smartdialer.private_only
+import dev.phoenix365.smartdialer.view.screen.settings.NumberChangeExample
+import dev.phoenix365.smartdialer.view.screen.settings.StandardizeStats
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class ContactsViewModel(
+    application: Application,
+    private val contactsRepo: IContactsRepository,
+    private val preferenceManager: PreferenceManager,
+    private val trashedContactDao: TrashedContactDao
+) : AndroidViewModel(application) {
+
+    private val _allContacts = MutableStateFlow<List<Contact>>(emptyList())
+    val allContacts: StateFlow<List<Contact>> = _allContacts.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _trashedContacts = MutableStateFlow<List<TrashedContactEntity>>(emptyList())
+    val trashedContacts: StateFlow<List<TrashedContactEntity>> = _trashedContacts.asStateFlow()
+
+    private val _allContactsFull = MutableStateFlow<List<Contact>>(emptyList())
+    val allContactsFull: StateFlow<List<Contact>> = _allContactsFull.asStateFlow()
+    private var isFullContactsLoaded = false
+
+    private val _isLoadingFull = MutableStateFlow(true)
+    val isLoadingFull: StateFlow<Boolean> = _isLoadingFull.asStateFlow()
+
+    private val _standardizeProgress = MutableStateFlow<Float?>(null)
+    val standardizeProgress: StateFlow<Float?> = _standardizeProgress.asStateFlow()
+
+    private val _availableAccounts = MutableStateFlow<List<Account>>(emptyList())
+    val availableAccounts = _availableAccounts.asStateFlow()
+
+    private val _availableAccountsForMoving = MutableStateFlow<List<Account>>(emptyList())
+    val availableAccountsForMoving = _availableAccountsForMoving.asStateFlow()
+
+    private val _selectedAccount = MutableStateFlow<Account?>(null)
+    val selectedAccount = _selectedAccount.asStateFlow()
+
+    private val _showPrivateOnly = MutableStateFlow(false)
+    val showPrivateOnly = _showPrivateOnly.asStateFlow()
+
+    private val _showLocalOnly = MutableStateFlow(false)
+    val showLocalOnly = _showLocalOnly.asStateFlow()
+
+    private val _visibleAccounts = MutableStateFlow(preferenceManager.getVisibleAccounts())
+    val visibleAccountsFlow = _visibleAccounts.asStateFlow()
+
+    private val _sortOrder = MutableStateFlow(preferenceManager.getInt(PreferenceManager.KEY_CONTACT_SORT_ORDER, 0))
+    val sortOrder = _sortOrder.asStateFlow()
+
+    private val _displayOrder = MutableStateFlow(preferenceManager.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0))
+    val displayOrder = _displayOrder.asStateFlow()
+
+    private val _scrollToTop = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val scrollToTop: SharedFlow<Unit> = _scrollToTop.asSharedFlow()
+
+    fun requestScrollToTop() {
+        _scrollToTop.tryEmit(Unit)
+    }
+
+    /**
+     * Key used by the "contact sources" setting to decide whether a contact may be shown.
+     * Device-only contacts (no account at all) use the pseudo source "local|local", contacts that
+     * only exist inside the app use "private|private", everything else "type|name".
+     */
+    private fun visibilityKeyOf(contact: Contact): String = when {
+        contact.accountType == null && contact.accountName == null ->
+            if (contact.isPrivate) "private|private" else "local|local"
+
+        else -> "${contact.accountType}|${contact.accountName}"
+    }
+
+    /**
+     * All contacts, reduced to the sources the user has enabled in the contact source settings.
+     * Used by screens (dialer, search) that must respect the source selection but must not be
+     * affected by the account filter of the contacts list.
+     */
+    val visibleContacts: StateFlow<List<Contact>> = combine(
+        _allContacts,
+        _visibleAccounts
+    ) { contacts, visibleAccounts ->
+        if (visibleAccounts == null) contacts
+        else contacts.filter { visibleAccounts.contains(visibilityKeyOf(it)) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredAvailableAccounts: StateFlow<List<Account>> = combine(
+        _availableAccounts,
+        _visibleAccounts
+    ) { accounts, visibleAccounts ->
+        if (visibleAccounts == null) {
+            accounts
+        } else {
+            accounts.filter { account ->
+                val key = "${account.type}|${account.name}"
+                visibleAccounts.contains(key)
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredContacts = combine(
+        _allContacts,
+        _selectedAccount,
+        _showPrivateOnly,
+        _showLocalOnly,
+        _visibleAccounts,
+        _sortOrder
+    ) { args ->
+        val contacts = args[0] as List<Contact>
+        val account = args[1] as Account?
+        val privateOnly = args[2] as Boolean
+        val localOnly = args[3] as Boolean
+        val visibleAccounts = args[4] as Set<String>?
+        val sortOrder = args[5] as Int
+
+        val baseFiltered = when {
+            privateOnly -> contacts.filter { it.isPrivate }
+            localOnly -> contacts.filter { it.accountName == null && it.accountType == null && !it.isPrivate }
+            account == null -> {
+                if (visibleAccounts == null) contacts
+                else contacts.filter { contact -> visibleAccounts.contains(visibilityKeyOf(contact)) }
+            }
+            else -> contacts.filter { it.accountName == account.name && it.accountType == account.type }
+        }
+
+        if (sortOrder == 1) {
+            baseFiltered.sortedBy {
+                it.familyName.lowercase().ifBlank { it.displayName.lowercase() }
+            }
+        } else {
+            baseFiltered.sortedBy {
+                it.givenName.lowercase().ifBlank { it.displayName.lowercase() }
+            }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val groupedContacts = combine(filteredContacts, _sortOrder) { contacts, sortOrder ->
+        val mainGroups = contacts.groupBy {
+            val nameToUse = if (sortOrder == 1) {
+                it.familyName.ifBlank { it.displayName }
+            } else {
+                it.givenName.ifBlank { it.displayName }
+            }
+            val firstChar = nameToUse.firstOrNull()?.uppercaseChar() ?: '#'
+            if (firstChar.isLetter()) firstChar else '#'
+        }.toMutableMap()
+
+        val finalMap = linkedMapOf<Char, List<Contact>>()
+
+        mainGroups.keys.filter { it.isLetter() }.sorted().forEach { char ->
+            finalMap[char] = mainGroups[char]!!
+        }
+
+        val hashGroup = mainGroups['#']
+        if (hashGroup != null) finalMap['#'] = hashGroup
+
+        finalMap
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    init {
+        fetchAccounts()
+    }
+
+    fun fetchContacts() {
+        viewModelScope.launch {
+            if (_allContacts.value.isEmpty()) {
+                _isLoading.value = true
+            }
+            val result = contactsRepo.getContacts()
+            _allContacts.value = result
+            _isLoading.value = false
+        }
+    }
+
+    fun fetchContactsFull() {
+        if (!isFullContactsLoaded) {
+            isFullContactsLoaded = true
+            viewModelScope.launch {
+                if (_allContacts.value.isEmpty()) {
+                    _isLoadingFull.value = true
+                }
+                val fullContacts = contactsRepo.getContactsFull()
+                _allContactsFull.value = fullContacts
+                _isLoading.value = false
+            }
+        }
+    }
+
+    suspend fun getFullContactById(contactId: String): Contact? {
+        return contactsRepo.getContactById(contactId)
+    }
+
+    suspend fun getFullContactByNumber(number: String): Contact? {
+        return contactsRepo.getContactByNumber(number)
+    }
+
+    fun fetchAccounts() {
+        viewModelScope.launch {
+            _availableAccounts.value = contactsRepo.getAvailableAccounts()
+            _availableAccountsForMoving.value = contactsRepo.getAvailableAccountsForMoving()
+        }
+    }
+
+    fun selectAccount(account: Account?) {
+        _selectedAccount.value = account
+        if (account != null) {
+            _showPrivateOnly.value = false
+            _showLocalOnly.value = false
+        }
+    }
+    fun setShowPrivateOnly(show: Boolean) {
+        _showPrivateOnly.value = show
+        if (show) {
+            _selectedAccount.value = null
+            _showLocalOnly.value = false
+        }
+    }
+
+    fun setShowLocalOnly(show: Boolean) {
+        _showLocalOnly.value = show
+        if (show) {
+            _selectedAccount.value = null
+            _showPrivateOnly.value = false
+        }
+    }
+
+    fun setVisibleAccounts(accounts: Set<String>?) {
+        if (accounts == null) {
+            preferenceManager.setString(PreferenceManager.KEY_VISIBLE_ACCOUNTS, null)
+        } else {
+            preferenceManager.setVisibleAccounts(accounts)
+        }
+        _visibleAccounts.value = accounts
+    }
+
+    fun setSortOrder(order: Int) {
+        preferenceManager.setInt(PreferenceManager.KEY_CONTACT_SORT_ORDER, order)
+        _sortOrder.value = order
+    }
+
+    fun setDisplayOrder(order: Int) {
+        preferenceManager.setInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, order)
+        _displayOrder.value = order
+    }
+
+    fun toggleFavorite(contact: Contact, add: Boolean = false) {
+        viewModelScope.launch {
+            val newFavStatus = !contact.isFavorite
+            contactsRepo.toggleFavorite(contact.id, if (add) true else newFavStatus)
+
+            val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
+            if (newFavStatus) {
+                if (!currentOrder.contains(contact.id)) {
+                    currentOrder.add(contact.id)
+                    preferenceManager.setFavoritesOrder(currentOrder)
+                }
+            } else {
+                if (currentOrder.contains(contact.id)) {
+                    currentOrder.remove(contact.id)
+                    preferenceManager.setFavoritesOrder(currentOrder)
+                }
+            }
+
+            fetchContacts()
+        }
+    }
+
+    fun setFavorite(contact: Contact, isFavorite: Boolean) {
+        viewModelScope.launch {
+            contactsRepo.toggleFavorite(contact.id, isFavorite)
+            fetchContacts()
+        }
+    }
+
+    suspend fun saveContact(contact: Contact) {
+        contactsRepo.saveContact(contact)
+
+        if (contact.isPrivate) {
+            preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_NAME, contact.accountName ?: private_only)
+            preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_TYPE, contact.accountType ?: private_only)
+        } else {
+            preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_NAME, contact.accountName ?: device_only)
+            preferenceManager.setString(PreferenceManager.KEY_LAST_USED_ACCOUNT_TYPE, contact.accountType ?: device_only)
+        }
+
+        fetchContacts()
+    }
+
+    fun getLastUsedAccount(): Account? {
+        val lastUsedName = preferenceManager.getString(PreferenceManager.KEY_LAST_USED_ACCOUNT_NAME, null)
+        val lastUsedType = preferenceManager.getString(PreferenceManager.KEY_LAST_USED_ACCOUNT_TYPE, null)
+
+        if (lastUsedName == private_only && lastUsedType == private_only) {
+            return Account(private_only, private_only)
+        }
+
+        if (lastUsedName == device_only && lastUsedType == device_only) {
+            return null
+        }
+
+        if (lastUsedName != null && lastUsedType != null) {
+            val lastUsed = Account(lastUsedName, lastUsedType)
+            if (_availableAccountsForMoving.value.contains(lastUsed)) {
+                return lastUsed
+            }
+        }
+
+        val mostPopular = getAccountWithMostContacts()
+        if (mostPopular != null) {
+            return mostPopular
+        }
+
+        return null
+    }
+
+    private fun getAccountWithMostContacts(): Account? {
+        val accounts = _availableAccountsForMoving.value
+        if (accounts.isEmpty()) return null
+
+        val accountCounts = mutableMapOf<String, Account>()
+        val counts = mutableMapOf<String, Int>()
+
+        _allContacts.value.forEach { contact ->
+            if (contact.accountName != null && contact.accountType != null) {
+                val key = "${contact.accountName}|${contact.accountType}"
+                counts[key] = counts.getOrDefault(key, 0) + 1
+                accountCounts[key] = Account(contact.accountName, contact.accountType)
+            }
+        }
+
+        val maxEntry = counts.maxByOrNull { it.value }
+        return maxEntry?.let { accountCounts[it.key] }
+    }
+
+    fun fetchTrashedContacts() {
+        viewModelScope.launch(Dispatchers.IO) {
+            _trashedContacts.value = contactsRepo.getTrashedContacts()
+        }
+    }
+
+    fun restoreTrashedContact(localId: Long, onDone: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactsRepo.restoreTrashedContact(localId)
+            _trashedContacts.value = contactsRepo.getTrashedContacts()
+            fetchContacts()
+            withContext(Dispatchers.Main) {
+                onDone?.invoke()
+            }
+        }
+    }
+
+    fun permanentlyDeleteTrashedContact(localId: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactsRepo.permanentlyDeleteTrashedContact(localId)
+            _trashedContacts.value = contactsRepo.getTrashedContacts()
+        }
+    }
+
+    fun emptyTrash(onDone: (() -> Unit)? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            contactsRepo.emptyTrash()
+            _trashedContacts.value = emptyList()
+            withContext(Dispatchers.Main) {
+                onDone?.invoke()
+            }
+        }
+    }
+
+    private suspend fun trashContact(contactId: String) {
+        if (contactId.startsWith("p")) {
+            // Private contact—keep it as is
+            val fullContact = contactsRepo.getContactById(contactId)
+            if (fullContact != null) {
+                trashedContactDao.insert(TrashedContactEntity.fromContact(fullContact))
+            }
+            return
+        }
+
+        val rawContactInfos = contactsRepo.getRawContactsForContact(contactId)
+
+        if (rawContactInfos.size > 1) {
+            // Combined Contact: Saving Each Source Separately
+            var savedCount = 0
+
+            rawContactInfos.forEach { rawInfo ->
+                val rawContactData = contactsRepo.getRawContactData(rawInfo.rawContactId)
+                if (rawContactData != null) {
+                    // We're changing the account to the one that RawContact is actually linked to
+                    val contactWithAccount = rawContactData.copy(
+                        accountName = rawInfo.accountName,
+                        accountType = rawInfo.accountType
+                    )
+                    trashedContactDao.insert(TrashedContactEntity.fromContact(contactWithAccount))
+                    savedCount++
+                }
+            }
+
+            // If no RawContact could be read, fall back to the full contact
+            if (savedCount == 0) {
+                val fullContact = contactsRepo.getContactById(contactId)
+                if (fullContact != null) {
+                    trashedContactDao.insert(TrashedContactEntity.fromContact(fullContact))
+                }
+            }
+        } else {
+            // Single contact
+            val fullContact = contactsRepo.getContactById(contactId)
+            if (fullContact != null) {
+                trashedContactDao.insert(TrashedContactEntity.fromContact(fullContact))
+            }
+        }
+    }
+
+    fun deleteContact(contactId: String) {
+        viewModelScope.launch {
+            if (preferenceManager.isContactsTrashEnabled()) {
+                trashContact(contactId)
+            }
+            contactsRepo.deleteContact(contactId)
+
+            val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
+            if (currentOrder.contains(contactId)) {
+                currentOrder.remove(contactId)
+                preferenceManager.setFavoritesOrder(currentOrder)
+            }
+
+            fetchContacts()
+            fetchTrashedContacts()
+        }
+    }
+
+    fun deleteContacts(contactIds: List<String>) {
+        viewModelScope.launch {
+            if (preferenceManager.isContactsTrashEnabled()) {
+                contactIds.forEach { contactId ->
+                    trashContact(contactId)
+                }
+            }
+            contactsRepo.deleteContacts(contactIds)
+
+            val currentOrder = preferenceManager.getFavoritesOrder().toMutableList()
+            var changed = false
+            contactIds.forEach { id ->
+                if (currentOrder.contains(id)) {
+                    currentOrder.remove(id)
+                    changed = true
+                }
+            }
+            if (changed) {
+                preferenceManager.setFavoritesOrder(currentOrder)
+            }
+
+            fetchContacts()
+            fetchTrashedContacts()
+        }
+    }
+
+    fun moveContacts(contactIds: List<String>, account: Account?): Map<String, String> {
+        var newIdsMap: Map<String, String> = emptyMap()
+        viewModelScope.launch {
+            newIdsMap = contactsRepo.moveContacts(contactIds, account?.name, account?.type)
+            fetchContacts()
+        }
+        return newIdsMap
+    }
+
+    fun findDuplicates(onResult: (List<List<Contact>>) -> Unit) {
+        viewModelScope.launch {
+            val duplicates = contactsRepo.findDuplicates()
+            onResult(duplicates)
+        }
+    }
+
+    fun mergeContacts(targetId: String, sourceIds: List<String>) {
+        viewModelScope.launch {
+            contactsRepo.mergeContacts(targetId, sourceIds)
+            fetchContacts()
+        }
+    }
+
+    fun setCustomRingtone(contactId: String, ringtoneUri: String?) {
+        viewModelScope.launch {
+            contactsRepo.setCustomRingtone(contactId, ringtoneUri)
+        }
+    }
+
+    fun formatAllPhoneNumbers() {
+        viewModelScope.launch {
+            _standardizeProgress.value = 0f
+            contactsRepo.formatAllPhoneNumbers { current, total ->
+                _standardizeProgress.value = if (total > 0) current.toFloat() / total else 1f
+            }
+            fetchContacts()
+            _standardizeProgress.value = null
+        }
+    }
+
+    fun previewStandardize(onResult: (StandardizeStats) -> Unit) {
+        viewModelScope.launch(Dispatchers.Default) {
+            val allContacts = contactsRepo.getContacts()
+            var contactsWithChanges = 0
+            var totalNumbersChanged = 0
+            val examples = mutableListOf<NumberChangeExample>()
+
+            allContacts.forEach { contact ->
+                val formattedPhoneNumbers = contact.phoneNumbers.map { it.replace(" ", "") }
+                val changed = contact.phoneNumbers.zip(formattedPhoneNumbers)
+                    .filter { it.first != it.second }
+
+                if (changed.isNotEmpty()) {
+                    contactsWithChanges++
+                    totalNumbersChanged += changed.size
+
+                    if (examples.size < 3) {
+                        changed.take(3).forEach { (oldNum, newNum) ->
+                            examples.add(
+                                NumberChangeExample(
+                                    contactName = contact.displayName,
+                                    oldNumber = oldNum,
+                                    newNumber = newNum
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            val stats = StandardizeStats(
+                totalContacts = allContacts.size,
+                contactsWithChanges = contactsWithChanges,
+                totalNumbersChanged = totalNumbersChanged,
+                examples = examples
+            )
+
+            withContext(Dispatchers.Main) {
+                onResult(stats)
+            }
+        }
+    }
+
+    fun makeContactPrivate(contactId: String) {
+        viewModelScope.launch {
+            contactsRepo.makeContactPrivate(contactId)
+            fetchContacts()
+        }
+    }
+
+    fun makeContactPublic(contactId: String) {
+        viewModelScope.launch {
+            contactsRepo.makeContactPublic(contactId)
+            fetchContacts()
+        }
+    }
+
+    fun exportPrivateContacts(uri: Uri) {
+        viewModelScope.launch {
+            contactsRepo.exportPrivateContacts(uri)
+        }
+    }
+
+    fun importPrivateContacts(uri: Uri) {
+        viewModelScope.launch {
+            contactsRepo.importPrivateContacts(uri)
+            fetchContacts()
+        }
+    }
+
+    // Phoenix365
+    fun setDefaultPhoneNumber(contactId: String, phoneNumber: String, isPrimary: Boolean) {
+        viewModelScope.launch {
+            contactsRepo.setDefaultPhoneNumber(contactId, phoneNumber, isPrimary)
+            refreshContacts()
+        }
+    }
+
+    private fun refreshContacts() {
+        viewModelScope.launch {
+            val freshContacts = contactsRepo.getContacts()
+            _allContacts.value = freshContacts
+        }
+    }
+
+    val contactCountByAccount: Map<String, Int>
+        get() {
+            val map = mutableMapOf<String, Int>()
+            _allContacts.value.forEach { contact ->
+                val key = "${contact.accountName}|${contact.accountType}"
+                if (contact.accountName != null) {
+                    map[key] = map.getOrDefault(key, 0) + 1
+                }
+            }
+            return map
+        }
+
+    suspend fun getContactSources(contactId: String): List<ContactsRepository.ContactSource> {
+        return contactsRepo.getRawContactsForContact(contactId)
+            .map { raw ->
+                ContactsRepository.ContactSource(
+                    accountName = raw.accountName?.takeIf { it.isNotBlank() } ?: "Unknown",
+                    accountType = raw.accountType?.takeIf { it.isNotBlank() } ?: "Unknown",
+                    isPrimary = false, // Will be updated later
+                    rawContactId = raw.rawContactId
+                )
+            }
+            .mapIndexed { index, source ->
+                source.copy(isPrimary = index == 0)
+            }
+    }
+
+    suspend fun getRawContactData(rawContactId: String): Contact? {
+        return contactsRepo.getRawContactData(rawContactId)
+    }
+
+    fun updateRawContact(rawContactId: String, contact: Contact) {
+        viewModelScope.launch {
+            contactsRepo.updateRawContact(rawContactId, contact)
+            fetchContacts()
+        }
+    }
+
+    fun unmergeAll(contactId: String) {
+        viewModelScope.launch {
+            contactsRepo.unmergeAllSources(contactId)
+            fetchContacts()
+        }
+    }
+
+    suspend fun dumpContact(contactId: String): String {
+        return contactsRepo.dumpContact(contactId)
+    }
+}

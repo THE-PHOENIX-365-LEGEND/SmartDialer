@@ -1,0 +1,1157 @@
+package dev.phoenix365.smartdialer.view.screen
+
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.res.Configuration
+import dev.phoenix365.smartdialer.view.theme.TabTransitionStyle
+import android.content.Context
+import android.content.Intent
+import android.telecom.TelecomManager
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.rememberPermissionState
+import dev.phoenix365.smartdialer.controller.CallLogViewModel
+import dev.phoenix365.smartdialer.controller.util.formatDateHeader
+import dev.phoenix365.smartdialer.controller.util.makeCall
+import dev.phoenix365.smartdialer.controller.util.placeCallWithSimPreference
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.modal.data.CallLogFilter
+import dev.phoenix365.smartdialer.view.components.*
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactEditScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import android.os.Build
+import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.material.icons.rounded.Call
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.saveable.rememberSaveable
+import dev.phoenix365.smartdialer.bottomBarHeight
+import dev.phoenix365.smartdialer.cardCornerExtraSmall
+import dev.phoenix365.smartdialer.cardSpacedBy
+import dev.phoenix365.smartdialer.liquidglass.drawBackdrop
+import dev.phoenix365.smartdialer.liquidglass.effects.lens
+import dev.phoenix365.smartdialer.liquidglass.effects.colorControls
+import dev.phoenix365.smartdialer.liquidglass.highlight.Highlight
+import dev.phoenix365.smartdialer.liquidglass.LocalLiquidGlassBackdrop
+import org.koin.compose.viewmodel.koinActivityViewModel
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.controller.ContactsViewModel
+import dev.phoenix365.smartdialer.modal.data.CallLogEntry
+import dev.phoenix365.smartdialer.modal.data.Contact
+import com.ramcosta.composedestinations.generated.destinations.CallLogFullScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SettingsScreenDestination
+import dev.phoenix365.smartdialer.controller.CallNotificationManager
+import dev.phoenix365.smartdialer.controller.util.BlockedNumbersManager
+import dev.phoenix365.smartdialer.controller.util.ContactUtils.getPhoneNumber
+import dev.phoenix365.smartdialer.controller.util.SocialUtils
+import dev.phoenix365.smartdialer.controller.util.copyToClipboard
+import dev.phoenix365.smartdialer.controller.util.hasDualSim
+import dev.phoenix365.smartdialer.modal.data.SwipeActionType
+import dev.phoenix365.smartdialer.view.theme.SmartShapeDefaults
+import dev.phoenix365.smartdialer.view.theme.customColors
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.time.Duration.Companion.milliseconds
+
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
+@Destination<RootGraph>(start = true, style = TabTransitionStyle::class)
+@Composable
+fun RecentScreen(navController: NavController, navigator: DestinationsNavigator) {
+    val context = LocalContext.current
+    val permState = rememberPermissionState(Manifest.permission.READ_CALL_LOG)
+    val isGranted = permState.status == PermissionStatus.Granted
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val showButton by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 2
+        }
+    }
+    val viewModel: CallLogViewModel = koinActivityViewModel()
+    LaunchedEffect(Unit) {
+        viewModel.scrollToTop.collect {
+            if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
+                listState.animateScrollToItem(0)
+            }
+        }
+    }
+
+    val notificationManager = koinInject<CallNotificationManager>()
+    val prefs = koinInject<PreferenceManager>()
+    val pillNav = remember { prefs.getBoolean(PreferenceManager.KEY_PILL_NAV, false) }
+    val favoritesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, false)
+    val contactsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
+    val dialpadEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_DIALPAD, true)
+    val notesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_NOTES, false)
+    val searchEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SEARCH, false)
+    val settingsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SETTINGS, true)
+
+    var showDialpad by remember { mutableStateOf(false) }
+    var fabVisible by remember { mutableStateOf(false) }
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    var isDraggingFavorite by remember { mutableStateOf(false) }
+    val currentIsDraggingFavorite by rememberUpdatedState(isDraggingFavorite)
+
+    var selectedEntries by remember { mutableStateOf(setOf<CallLogEntry>()) }
+
+    BackHandler(enabled = selectedEntries.isNotEmpty()) {
+        selectedEntries = emptySet()
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // It triggers when the window is first opened, when it is restored from minimised state,
+                // and when it is restored from another screen
+                fabVisible = true
+                notificationManager.clearAllMissedCallNotifications(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    if (showDialpad) {
+        ModalBottomSheet(
+            onDismissRequest = { showDialpad = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = MaterialTheme.shapes.extraExtraLarge.copy(bottomStart = CornerSize(0.dp), bottomEnd = CornerSize(0.dp)),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow, //MaterialTheme.colorScheme.surface,
+            tonalElevation = 4.dp,
+            scrimColor = Color.Transparent,
+            contentWindowInsets = {
+                if (isLandscape) {
+                    WindowInsets.systemBars.only(
+                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    )
+                } else BottomSheetDefaults.windowInsets
+            },
+            dragHandle = {
+                if (isLandscape) null
+                else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(3.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier.size(width = 36.dp, height = 4.dp)
+                        ) {}
+                    }
+                }
+            },
+            modifier = Modifier.statusBarsPadding()
+        ) {
+            DialPadContent(
+                navigator = navigator,
+                onDismiss = { showDialpad = false },
+                isBottomSheet = true
+            )
+        }
+    }
+
+//    var childHScrolling by remember { mutableStateOf(false) }
+//    val nestedScrollConnection = remember {
+//        object : NestedScrollConnection {
+//            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+//                // A child LazyRow is consuming horizontal scroll – block our swipe nav
+//                if (kotlin.math.abs(available.x) > kotlin.math.abs(available.y)) {
+//                    childHScrolling = true
+//                }
+//                return Offset.Zero
+//            }
+//        }
+//    }
+
+    val showBottomBar = favoritesEnabled || contactsEnabled || dialpadEnabled ||notesEnabled || searchEnabled || settingsEnabled
+    Scaffold(
+        modifier = Modifier
+            .fillMaxSize(),
+//            .nestedScroll(nestedScrollConnection),
+//            .pointerInput(Unit) {
+//                // Use PointerEventPass.Final so children (LazyColumn) get events first.
+//                // Only trigger navigation when the horizontal movement clearly dominates
+//                // vertical movement, preventing accidental swipes during scrolling.
+//                awaitPointerEventScope {
+//                    while (true) {
+//                        val down = awaitPointerEvent(PointerEventPass.Final).changes.firstOrNull()
+//                            ?: continue
+//                        if (!down.pressed) continue
+//                        val startX = down.position.x
+//                        val startY = down.position.y
+//                        val startTime = System.currentTimeMillis()
+//                        var triggered = false
+//                        childHScrolling = false // reset at start of each gesture
+//                        while (true) {
+//                            val event = awaitPointerEvent(PointerEventPass.Final)
+//                            val change = event.changes.firstOrNull() ?: break
+//
+//                            // If dragging begins DURING the swipe gesture, we cancel it
+//                            if (currentIsDraggingFavorite) {
+//                                triggered = false // We're resetting it so the navigation definitely won't work
+//                                break // We exit the swipe loop; the outer loop will take over and wait for the button to be released
+//                            }
+//
+//                            val dx = change.position.x - startX
+//                            val dy = change.position.y - startY
+//                            val elapsed = System.currentTimeMillis() - startTime
+//                            if (!triggered &&
+//                                !childHScrolling &&
+//                                elapsed >= 150L &&
+//                                kotlin.math.abs(dx) > 700f &&
+//                                kotlin.math.abs(dx) > kotlin.math.abs(dy) * 5.5f
+//                            ) {
+//                                triggered = true
+//                                if (showBottomBar) {
+//                                    if (dx < 0) {
+//                                        val route = when {
+//                                            contactsEnabled -> ContactScreenDestination.route
+//                                            dialpadEnabled -> DialPadScreenDestination().route
+//                                            notesEnabled -> NotesScreenDestination.route
+//                                            else -> FavoritesScreenDestination.route
+//                                        }
+//                                        scope.launch {
+//                                            navController.navigate(route) {
+//                                                popUpTo(navController.graph.findStartDestination().id) {
+//                                                    saveState = true
+//                                                }
+//                                                launchSingleTop = true
+//                                                restoreState = true
+//                                            }
+//                                        }
+//                                    } else {
+//                                        val route = when {
+//                                            favoritesEnabled -> FavoritesScreenDestination.route
+//                                            notesEnabled -> NotesScreenDestination.route
+//                                            dialpadEnabled -> DialPadScreenDestination().route
+//                                            else -> ContactScreenDestination.route
+//                                        }
+//                                        scope.launch {
+//                                            navController.navigate(route) {
+//                                                popUpTo(navController.graph.findStartDestination().id) {
+//                                                    saveState = true
+//                                                }
+//                                                launchSingleTop = true
+//                                                restoreState = true
+//                                            }
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                            if (!change.pressed) {
+//                                childHScrolling = false
+//                                break
+//                            }
+//                        }
+//                    }
+//                }
+//            },
+        topBar = {
+            AnimatedContent(
+                targetState = selectedEntries.isNotEmpty(),
+                transitionSpec = {
+                    (fadeIn() + expandVertically()) togetherWith (fadeOut() + shrinkVertically())
+                },
+                label = "TopBarTransition"
+            ) { isSelecting ->
+                if (isGranted) {
+                    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+
+                    if (!isSelecting) {
+                        Column {
+                            if (!searchEnabled) TopBar(navController, navigator)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(
+                                        if (searchEnabled) Modifier.windowInsetsPadding(WindowInsets.statusBars)
+                                        else Modifier
+                                    )
+                            ) {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(CallLogFilter.entries) { filter ->
+                                        SmartFilterChip(stringResource(filter.stringRes), selectedFilter == filter, { _ ->
+                                            viewModel.setFilter(filter)
+                                        })
+                                    }
+                                }
+                                if (searchEnabled && !settingsEnabled) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_settings),
+                                        contentDescription = stringResource(R.string.settings),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .padding(horizontal = 16.dp)
+                                            .combinedClickable(
+                                                onClick = {
+                                                    if (prefs.getBoolean(
+                                                            PreferenceManager.KEY_APP_HAPTICS,
+                                                            true
+                                                        )
+                                                    ) {
+                                                        performAppHaptic(
+                                                            context,
+                                                            prefs.getString(
+                                                                PreferenceManager.KEY_APP_HAPTICS_STRENGTH,
+                                                                "light"
+                                                            ) ?: "light",
+                                                            prefs.getFloat(
+                                                                PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY,
+                                                                0.5f
+                                                            )
+                                                        )
+                                                    }
+                                                    navigator.navigate(SettingsScreenDestination)
+                                                },
+                                                interactionSource = null,
+                                                indication = ripple(bounded = false, radius = 22.dp)
+                                            ),
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        val filteredLogs by viewModel.filteredLogs.collectAsStateWithLifecycle()
+                        BatchCallLogActionBar(
+                            selectedCount = selectedEntries.size,
+                            onClearSelection = { selectedEntries = emptySet() },
+                            onDelete = {
+                                val allIdsToDelete = selectedEntries.flatMap { it.ids }
+                                viewModel.deleteCallLogsByIds(allIdsToDelete)
+                                selectedEntries = emptySet()
+                            },
+                            onClearAll = {
+                                // We delete only the filtered recent ones
+                                val filteredIdsToDelete = filteredLogs.flatMap { it.ids }
+                                viewModel.deleteCallLogsByIds(filteredIdsToDelete)
+                                selectedEntries = emptySet()
+                            },
+                            onBlock = {
+                                selectedEntries.forEach { entry ->
+                                    BlockedNumbersManager.block(context, entry.number)
+                                }
+                                selectedEntries = emptySet()
+                            },
+                            onShare = {
+                                val text = selectedEntries.map { it.number }
+                                    .joinToString("\n") { it.split("|").firstOrNull() ?: it }
+                                val intent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"; putExtra(Intent.EXTRA_TEXT, text)
+                                }
+                                context.startActivity(
+                                    Intent.createChooser(
+                                        intent,
+                                        "Share call logs"
+                                    )
+                                )
+                            },
+                            onCallLogs = {
+                                navigator.navigate(CallLogFullScreenDestination(
+                                    numbersList = selectedEntries.map {it.number}.distinct().toTypedArray()
+                                ))
+                            },
+                            onDeselect = {
+                                selectedEntries = emptySet()
+                            },
+                            onSelectAll = {
+                                selectedEntries = filteredLogs.toSet()
+                            },
+                            isAllSelected = selectedEntries == filteredLogs.toSet()
+                        )
+                    }
+                }
+            }
+        },
+        floatingActionButton = {
+            if (!dialpadEnabled) {
+                val globalBackdrop = LocalLiquidGlassBackdrop.current
+                val settingsVer by prefs.settingsChanged.collectAsStateWithLifecycle()
+                val liquidGlass = remember(settingsVer) {
+                    prefs.getBoolean(
+                        PreferenceManager.KEY_LIQUID_GLASS,
+                        false
+                    )
+                }
+                val lgRecentsFab = remember(settingsVer) {
+                    prefs.getBoolean(
+                        PreferenceManager.KEY_LG_RECENTS_FAB,
+                        false
+                    )
+                }
+                val blurEffects = remember(settingsVer) {
+                    prefs.getBoolean(
+                        PreferenceManager.KEY_BLUR_EFFECTS,
+                        false
+                    )
+                }
+                val blurRecentsFab = remember(settingsVer) {
+                    prefs.getBoolean(
+                        PreferenceManager.KEY_BLUR_RECENTS_FAB,
+                        false
+                    )
+                }
+                val fabShape = RoundedCornerShape(17.dp)
+                val useLiquidGlass =
+                    liquidGlass && lgRecentsFab && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && globalBackdrop != null
+                val useBlur = blurEffects && blurRecentsFab && !useLiquidGlass
+
+                val fabScale by animateFloatAsState(
+                    targetValue = if (fabVisible) 1f else 0f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "fabScale"
+                )
+                val baseModifier = Modifier
+                    .scale(fabScale)
+                    .then(
+                        if (isLandscape) Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 0.dp)
+                        else if (pillNav) Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = if (showBottomBar) 90.dp else 0.dp)
+                        else Modifier
+                            .padding(bottom = if (showBottomBar) bottomBarHeight + 24.dp else 0.dp)
+                            .then(if (showBottomBar) Modifier else Modifier.navigationBarsPadding())
+                    )
+                if (useLiquidGlass) {
+                    Box(
+                        modifier = baseModifier.drawBackdrop(
+                            backdrop = globalBackdrop,
+                            shape = { fabShape },
+                            effects = {
+                                val d = density
+                                colorControls(brightness = -0.15f)
+                                lens(refractionHeight = 46f * d, refractionAmount = 64f * d)
+                            },
+                            highlight = { Highlight.Default }
+                        )
+                    ) {
+                        FloatingActionButton(
+                            onClick = { showDialpad = true },
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.0f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            shape = fabShape,
+//                            elevation = FloatingActionButtonDefaults.elevation(0.dp),
+                        ) { Icon(Icons.Default.Dialpad, "Dialpad") }
+                    }
+                } else {
+                    FloatingActionButton(
+                        onClick = { showDialpad = true },
+                        containerColor = if (useBlur)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)
+                        else
+                            MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        shape = fabShape,
+//                        elevation = FloatingActionButtonDefaults.elevation(0.dp),
+                        modifier = baseModifier
+                    ) { Icon(Icons.Default.Dialpad, "Dialpad") }
+                }
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentWindowInsets = WindowInsets(0)
+    ) { innerPadding ->
+        Box(modifier = Modifier
+            .padding(innerPadding)
+            .fillMaxSize()) {
+            CallLogFullContent(
+                navController = navController,
+                navigator = navigator,
+                isGranted = isGranted,
+                onRequestPermission = { permState.launchPermissionRequest() },
+                listState = listState,
+                selectedEntries = selectedEntries,
+                onToggleSelection = { entry ->
+                    selectedEntries = if (selectedEntries.any { it.id == entry.id }) {
+                        selectedEntries.filter { it.id != entry.id }.toSet()
+                    } else {
+                        selectedEntries + entry
+                    }
+                },
+                isDraggingFavorite = currentIsDraggingFavorite,
+                onDraggingFavoriteChange = { isDraggingFavorite = it },
+            )
+
+            val endPadding = if (!dialpadEnabled) 86.dp else 32.dp
+            ScrollToTopButton(
+                modifier = Modifier
+                    .then(
+                        if (isLandscape || !showBottomBar) Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 12.dp, end = endPadding)
+                        else if (pillNav) Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = 92.dp + 8.dp, end = endPadding)
+                        else Modifier
+                            .navigationBarsPadding()
+                            .padding(bottom = bottomBarHeight + 12.dp, end = endPadding)
+                    ),
+                visible = showButton,
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                }
+            )
+        }
+    }
+}
+
+@SuppressLint("UnusedContentLambdaTargetStateParameter")
+@Composable
+fun CallLogFullContent(
+    navController: NavController,
+    navigator: DestinationsNavigator,
+    isGranted: Boolean,
+    onRequestPermission: () -> Unit,
+    listState: LazyListState,
+    selectedEntries: Set<CallLogEntry>,
+    onToggleSelection: (CallLogEntry) -> Unit,
+    isDraggingFavorite: Boolean = false,
+    onDraggingFavoriteChange: (Boolean) -> Unit = {},
+) {
+    val prefs = koinInject<PreferenceManager>()
+    val favouritesEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_FAVORITES, false)
+    val contactsEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_CONTACTS, true)
+    val cardCornerExtraLarge  = prefs.getInt(PreferenceManager.KEY_CARD_ROUNDNESS, SmartShapeDefaults.DefaultRoundness).dp
+    val haptics = prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)
+    val hapticsStrength = prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light"
+    val hapticsIntensity = prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
+    var pendingDeleteIds by remember { mutableStateOf<List<Long>>(emptyList()) }
+
+    val videoLauncher = rememberVideoLauncher()
+
+    var pullToRefreshActive by remember { mutableStateOf(false) }
+
+    if (isGranted) {
+        val viewModel: CallLogViewModel = koinActivityViewModel()
+        val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+        val logs by viewModel.allCallLogs.collectAsStateWithLifecycle()
+        val filteredLogs by viewModel.filteredLogs.collectAsStateWithLifecycle()
+        val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+        val context = LocalContext.current
+        val telecomManager = remember { context.getSystemService(Context.TELECOM_SERVICE) as TelecomManager }
+
+        val contactsVM: ContactsViewModel = koinActivityViewModel()
+        val settingsState by prefs.settingsChanged.collectAsStateWithLifecycle()
+        val displayOrder by remember(settingsState) {
+            mutableIntStateOf(prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0))
+        }
+        LaunchedEffect(settingsState) {
+            contactsVM.fetchContacts()
+        }
+
+        val isLoadingContacts by contactsVM.isLoading.collectAsStateWithLifecycle()
+        val allContacts by contactsVM.allContacts.collectAsStateWithLifecycle()
+//        val favorites = remember(allContacts) { allContacts.filter { it.isFavorite } }
+        val favorites = remember(allContacts, settingsState) {
+            val favContacts = allContacts.filter { it.isFavorite }
+            val order = prefs.getFavoritesOrder()
+            favContacts.sortedWith(compareBy<Contact> { contact ->
+                val index = order.indexOf(contact.id)
+                if (index != -1) index else Int.MAX_VALUE
+            }.thenBy { it.displayName })
+        }
+        var isEditingFavorites by remember { mutableStateOf(false) }
+        LaunchedEffect(selectedFilter) {
+            isEditingFavorites = false
+        }
+        var isFavoritesCollapsed by remember(settingsState) {
+            mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED, false))
+        }
+
+        var showSimPicker by remember { mutableStateOf(false) }
+        var pendingNumber by remember { mutableStateOf<String?>(null) }
+        val simPref = remember(settingsState) { prefs.getInt(PreferenceManager.KEY_DEFAULT_SIM, prefs.getDefaultSimIndexDefault()) }
+        var swipeEnabled by remember(settingsState) { mutableStateOf(prefs.isSwipeActionsEnabled()) }
+        var swipeRightAction by remember(settingsState) { mutableStateOf(SwipeActionType.fromId(prefs.getSwipeRightAction())) }
+        var swipeLeftAction by remember(settingsState) { mutableStateOf(SwipeActionType.fromId(prefs.getSwipeLeftAction())) }
+        var swipeLeftSecondAction by remember(settingsState) { mutableStateOf(SwipeActionType.fromId(prefs.getSwipeLeftSecondAction())) }
+
+        // Track previous filter index for slide direction
+        val filterEntries = CallLogFilter.entries
+//        var previousFilterIndex by remember { mutableIntStateOf(filterEntries.indexOf(selectedFilter)) }
+        val groupedLogs = remember(filteredLogs) { filteredLogs.groupBy { context.formatDateHeader(it.date) } }
+
+        if (showSimPicker && pendingNumber != null) {
+            SimPickerDialog(
+                onDismissRequest = { showSimPicker = false },
+                onSimSelected = { handle ->
+                    pendingNumber?.let { number -> makeCall(context, number, handle) }
+                    showSimPicker = false
+                }
+            )
+        }
+
+        fun swipeAction(lg: CallLogEntry, action: SwipeActionType) {
+            when (action) {
+                SwipeActionType.CALL -> {
+                    placeCallWithSimPreference(context, lg.number, simPref) {
+                        pendingNumber = lg.number
+                        showSimPicker = true
+                    }
+                }
+                SwipeActionType.MESSAGE -> {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data = "sms:${lg.number}".toUri()
+                        }
+                    context.startActivity(intent)
+                }
+                SwipeActionType.VIDEO_CALL -> videoLauncher.startVideoCall(lg.number)
+                SwipeActionType.WHATSAPP -> SocialUtils.openWhatsAppChat(context, lg.number)
+                SwipeActionType.TELEGRAM -> SocialUtils.openTelegramChat(context, lg.number)
+                SwipeActionType.COPY_NUMBER -> {
+                    context.copyToClipboard(lg.number)
+                }
+                SwipeActionType.DELETE -> { pendingDeleteIds = lg.ids }
+                else -> {}
+            }
+        }
+
+        val pullToRefreshState = rememberPullToRefreshState()
+        val isDataLoading = (logs.isEmpty() && isLoading) || (!favouritesEnabled && isLoadingContacts && allContacts.isEmpty())
+
+        PullToRefreshBox(
+            isRefreshing = isDataLoading && pullToRefreshActive,
+            onRefresh = {
+                pullToRefreshActive = true
+                viewModel.refreshLogs()
+                contactsVM.fetchContacts()
+                pullToRefreshActive = false
+            },
+            modifier = Modifier.fillMaxSize(),
+            state = pullToRefreshState,
+            indicator = {
+                SmartPullToRefreshIndicator(
+                    state = pullToRefreshState,
+                    isRefreshing = isDataLoading && pullToRefreshActive
+                )
+            }
+        ) {
+            if (isDataLoading) {
+                // Only show a spinner on the very first launch when no disk cache exists.
+                // On subsequent opens the disk cache fills instantly so this won't be seen.
+                var showSpinner by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    // Give the disk cache ~200ms to arrive; only show spinner if still empty
+                    kotlinx.coroutines.delay(200.milliseconds)
+                    showSpinner = true
+                }
+                if (showSpinner) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 3.dp
+                        )
+                    }
+                }
+            } else if (logs.isEmpty()) {
+                PlaceholderView(
+                    icon = Icons.Rounded.Call,
+                    title = stringResource(R.string.no_calls_found),
+                )
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // ── Animated content: slides left/right on filter change ──────
+                    // On the very first data load (startup) we use a slow fade-in so the
+                    // list appears gracefully instead of jumping. Once the user starts
+                    // changing filters the normal slide transition takes over.
+                    var hasLoadedOnce by remember { mutableStateOf(false) }
+                    // IMPORTANT: Scroll the list OUTSIDE AnimatedContent.
+                    // This prevents the exit animation from conflicting with the scrolling.
+                    var lastFilter by rememberSaveable { mutableStateOf(selectedFilter) }
+                    LaunchedEffect(selectedFilter) {
+                        // Scroll to the top whenever the filter changes
+                        if (lastFilter != selectedFilter) {
+                            listState.scrollToItem(0)
+                            lastFilter = selectedFilter
+                        }
+                    }
+                    // Remove `groupedLogs` from `AnimatedContent`’s `targetState`!
+                    // The animation now depends ONLY on the selected filter.
+                    AnimatedContent(
+                        targetState = selectedFilter,
+                        transitionSpec = {
+                            if (!hasLoadedOnce) {
+                                // Startup: slow gentle fade, no slide
+                                fadeIn(
+                                    animationSpec = tween(
+                                        600,
+                                        easing = LinearOutSlowInEasing
+                                    )
+                                ) togetherWith
+                                        fadeOut(animationSpec = tween(0))
+                            } else {
+                                val currentIdx = filterEntries.indexOf(targetState)
+                                val prevIdx = filterEntries.indexOf(initialState)
+                                val goingRight = currentIdx > prevIdx
+                                if (goingRight) {
+                                    slideInHorizontally(
+                                        initialOffsetX = { it },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    ) togetherWith slideOutHorizontally(
+                                        targetOffsetX = { -it },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    )
+                                } else {
+                                    slideInHorizontally(
+                                        initialOffsetX = { -it },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    ) togetherWith slideOutHorizontally(
+                                        targetOffsetX = { it },
+                                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        label = "filterSlide"
+                    ) { currentFilter ->
+                        SideEffect { hasLoadedOnce = true }
+                        ScrollHapticsEffect(listState = listState)
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 8.dp, bottom = 168.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            if (!favouritesEnabled && favorites.isNotEmpty() && selectedFilter == CallLogFilter.All) {
+                                item {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(end = 16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+//                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .padding(horizontal = 20.dp)
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        val newCollapsed = !isFavoritesCollapsed
+                                                        isFavoritesCollapsed = newCollapsed
+                                                        prefs.setBoolean(
+                                                            PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED,
+                                                            newCollapsed
+                                                        )
+                                                    },
+                                                    interactionSource = null,
+                                                    indication = ripple(bounded = true),
+                                                ),
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = Color.Transparent
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(
+                                                    horizontal = 16.dp,
+                                                    vertical = 4.dp
+                                                ),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = stringResource(R.string.favorites),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.primary,
+                                                    fontWeight = FontWeight.Bold,
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector =
+                                                        if (isFavoritesCollapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                                                    contentDescription = stringResource(R.string.favorites),
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(Modifier.weight(1f))
+                                        if (!contactsEnabled) {
+                                            Surface(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(20.dp))
+                                                    .combinedClickable(
+                                                        onClick = {
+                                                            navController.navigate(
+                                                                ContactScreenDestination.route
+                                                            ) {
+                                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                                    saveState = true
+                                                                }
+                                                                launchSingleTop = true
+                                                                restoreState = true
+                                                            }
+                                                        },
+                                                        interactionSource = null,
+                                                        indication = ripple(bounded = true),
+                                                    ),
+                                                shape = RoundedCornerShape(20.dp),
+                                                color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                            ) {
+                                                Text(
+                                                    modifier = Modifier.padding(
+                                                        horizontal = 16.dp,
+                                                        vertical = 5.dp
+                                                    ),
+                                                    text = stringResource(R.string.view_contacts),
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                        }
+
+                                        Surface(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .combinedClickable(
+                                                    onClick = {
+                                                        isEditingFavorites = !isEditingFavorites
+
+                                                        if (isFavoritesCollapsed) {
+                                                            isFavoritesCollapsed = false
+                                                            prefs.setBoolean(
+                                                                PreferenceManager.KEY_RECENTS_FAVORITES_COLLAPSED,
+                                                                false
+                                                            )
+                                                        }
+                                                    },
+                                                    interactionSource = null,
+                                                    indication = ripple(bounded = true),
+                                                ),
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                                        ) {
+                                            Text(
+                                                modifier = Modifier.padding(
+                                                    horizontal = 16.dp,
+                                                    vertical = 5.dp
+                                                ),
+                                                text = if (isEditingFavorites) stringResource(R.string.done)
+                                                else stringResource(R.string.edit),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                    }
+                                    AnimatedVisibility(
+                                        visible = !isFavoritesCollapsed,
+                                        enter = expandVertically(
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                        ) + fadeIn(),
+                                        exit = shrinkVertically(
+                                            animationSpec = tween(300, easing = FastOutSlowInEasing)
+                                        ) + fadeOut()
+                                    ) {
+                                        IPhoneFavoritesRow(
+                                            favorites = favorites,
+                                            isEditing = isEditingFavorites,
+                                            onUnfavorite = { contact ->
+                                                contactsVM.toggleFavorite(contact)
+                                            },
+                                            onSaveOrder = { newOrder ->
+                                                prefs.setFavoritesOrder(newOrder)
+                                            },
+                                            onClick = { contact ->
+//                                        callLauncher.dial(contact.phoneNumbers.firstOrNull() ?: "", contact)
+                                                val phoneNumber = getPhoneNumber(contact)
+                                                if (phoneNumber != null) {
+                                                    placeCallWithSimPreference(
+                                                        context,
+                                                        phoneNumber,
+                                                        simPref
+                                                    ) {
+                                                        pendingNumber =
+                                                            phoneNumber; showSimPicker = true
+                                                    }
+                                                } else {
+                                                    navigator.navigate(
+                                                        ContactDetailsScreenDestination(
+                                                            contactId = contact.id
+                                                        )
+                                                    )
+                                                }
+                                            },
+                                            isDragging = isDraggingFavorite,
+                                            onDraggingChange = onDraggingFavoriteChange,
+                                            displayOrder = displayOrder
+                                        )
+                                    }
+                                }
+                            }
+
+                            val directCall =
+                                prefs.getBoolean(PreferenceManager.KEY_DIRECT_CALL_ON_TAP, false)
+                            val showSimLabel = hasDualSim(context)
+
+                            // IMPORTANT: We retrieve the current `groupedLogs` directly from the closure of the Composable function.
+                            // They will update automatically as soon as the ViewModel returns a new list,
+                            // WITHOUT restarting the slide animation!
+                            groupedLogs.forEach { (header, logsInGroup) ->
+                                // Section header as its own item
+                                item(key = "header_$header", contentType = "sectionHeader") {
+                                    SmartScrollAnimatedItem {
+                                        SmartSectionHeader(title = header)
+                                    }
+                                }
+                                // Individual items per log entry with per-item rounded corners
+                                logsInGroup.forEachIndexed { index, lg ->
+                                    val isFirst = index == 0
+                                    val isLast = index == logsInGroup.size - 1
+                                    val topStart =
+                                        if (isFirst) cardCornerExtraLarge else cardCornerExtraSmall
+                                    val topEnd =
+                                        if (isFirst) cardCornerExtraLarge else cardCornerExtraSmall
+                                    val bottomStart =
+                                        if (isLast) cardCornerExtraLarge else cardCornerExtraSmall
+                                    val bottomEnd =
+                                        if (isLast) cardCornerExtraLarge else cardCornerExtraSmall
+                                    val bottomPadding = if (!isLast) cardSpacedBy else 0.dp
+                                    item(
+                                        key = "log_${lg.number}_${lg.date}_${index}",
+                                        contentType = "callLogEntry"
+                                    ) {
+                                        val isSelected = selectedEntries.any { it.id == lg.id }
+                                        val selectionMode = selectedEntries.isNotEmpty()
+                                        SmartScrollAnimatedItem(delayMs = (index.coerceAtMost(5) * 30).toLong()) {
+                                            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                                SwipeableContainer(
+                                                    enabled = swipeEnabled && !selectionMode,
+                                                    haptics = haptics,
+                                                    hapticsStrength = hapticsStrength,
+                                                    hapticsIntensity = hapticsIntensity,
+                                                    swipeRightAction = swipeRightAction,
+                                                    swipeLeftAction = swipeLeftAction,
+                                                    swipeLeftSecondAction = swipeLeftSecondAction,
+                                                    onSwipeRight = { swipeAction(lg, swipeRightAction) },
+                                                    onSwipeLeft = { swipeAction(lg, swipeLeftAction) },
+                                                    onSwipeLeftSecond = { swipeAction(lg, swipeLeftSecondAction) },
+                                                    modifier = Modifier.padding(bottom = bottomPadding)
+                                                ) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(
+                                                            topStart = if (isSelected) cardCornerExtraLarge else topStart,
+                                                            topEnd = if (isSelected) cardCornerExtraLarge else topEnd,
+                                                            bottomStart = if (isSelected) cardCornerExtraLarge else bottomStart,
+                                                            bottomEnd = if (isSelected) cardCornerExtraLarge else bottomEnd
+                                                        ),
+                                                        color = MaterialTheme.colorScheme.surface,
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    ) {
+                                                        CallLogTile(
+                                                            log = lg,
+                                                            isSelected = isSelected,
+                                                            selectionMode = selectionMode,
+                                                            directCall = directCall,
+                                                            onTileClick = { log ->
+                                                                if (selectionMode) {
+                                                                    onToggleSelection(log)
+                                                                } else {
+                                                                    navigator.navigate(
+                                                                        ContactDetailsScreenDestination(
+                                                                            contactId = log.contactId
+                                                                                ?: "null",
+                                                                            phoneNumber = log.number,
+                                                                            initialName = if (log.number != log.name) log.name else null
+                                                                        )
+                                                                    )
+                                                                }
+                                                            },
+                                                            onLongClick = { log ->
+                                                                onToggleSelection(log)
+                                                            },
+                                                            onAvatarClick = { log ->
+                                                                if (log.contactId != null) {
+                                                                    navigator.navigate(
+                                                                        ContactDetailsScreenDestination(
+                                                                            contactId = log.contactId,
+                                                                            phoneNumber = log.number
+                                                                        )
+                                                                    )
+                                                                } else {
+                                                                    navigator.navigate(
+                                                                        ContactEditScreenDestination(
+                                                                            initialPhone = log.number,
+                                                                            initialName = if (log.number != log.name) log.name else null
+                                                                        )
+                                                                    )
+                                                                }
+                                                            },
+                                                            onCallClick = { log ->
+                                                                if (selectionMode) {
+                                                                    onToggleSelection(log)
+                                                                } else {
+                                                                    placeCallWithSimPreference(
+                                                                        context,
+                                                                        log.number,
+                                                                        simPref
+                                                                    ) {
+                                                                        pendingNumber = log.number
+                                                                        showSimPicker = true
+                                                                    }
+                                                                }
+                                                            },
+                                                            onDelete = {
+                                                                pendingDeleteIds = lg.ids
+                                                            },
+                                                            onShowHistory = {
+                                                                val contactId = lg.contactId
+                                                                val phoneNumber = lg.number
+                                                                navigator.navigate(
+                                                                    CallLogFullScreenDestination(
+                                                                        contactId = contactId,
+                                                                        phoneNumber = phoneNumber
+                                                                    )
+                                                                )
+                                                            },
+                                                            showSimLabel = showSimLabel,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if (isLast) Spacer(modifier = Modifier.height(12.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Delete confirmation dialog
+        if (pendingDeleteIds.isNotEmpty()) {
+            SmartDialog(
+                onDismissRequest = { pendingDeleteIds = emptyList() },
+                title = stringResource(R.string.delete_call_logs),
+                icon = ImageVector.vectorResource(id = R.drawable.ic_delete),
+                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkRed,
+                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorRed,
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteCallLogsByIds(pendingDeleteIds)
+                        pendingDeleteIds = emptyList()
+                    }) {
+                        Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteIds = emptyList() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            ) {
+                Text(
+                    stringResource(R.string.delete_call_logs_selected, pendingDeleteIds.size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    } else {
+        PermissionDeniedView(
+            icon = Icons.Default.Call,
+            title = stringResource(R.string.call_history),
+            description = stringResource(R.string.call_history_permission),
+            onGrantClick = onRequestPermission
+        )
+    }
+}
+
+//@Composable
+//private fun AnimatedStatCard(
+//    delayMs: Long,
+//    label: String,
+//    value: String,
+//    icon: ImageVector,
+//    iconTint: Color,
+//    modifier: Modifier = Modifier,
+//    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
+//    onClick: () -> Unit = {}
+//) {
+//    var visible by remember { mutableStateOf(false) }
+//    LaunchedEffect(Unit) { delay(delayMs); visible = true }
+//    val cardAlpha by animateFloatAsState(if (visible) 1f else 0f, tween(350), label = "statAlpha")
+//    val cardOffset by animateDpAsState(if (visible) 0.dp else 16.dp, spring(stiffness = Spring.StiffnessMediumLow), label = "statOffset")
+//    Box(modifier = Modifier
+//        .alpha(cardAlpha)
+//        .offset(y = cardOffset)) {
+//        Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = containerColor, modifier = modifier) {
+//            SmartStatCard(label = label, value = value, icon = icon, iconTint = iconTint, containerColor = Color.Transparent, modifier = Modifier.fillMaxWidth())
+//        }
+//    }
+//}

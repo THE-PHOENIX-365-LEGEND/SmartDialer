@@ -1,0 +1,456 @@
+package dev.phoenix365.smartdialer.view.screen.settings
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.provider.Settings
+import android.telecom.TelecomManager
+import android.view.Surface
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.rounded.CropFree
+import androidx.compose.material.icons.rounded.PictureInPicture
+import androidx.compose.material.icons.rounded.ScreenLockPortrait
+import androidx.compose.material.icons.rounded.SettingsPhone
+import androidx.compose.material.icons.rounded.SimCard
+import androidx.compose.material.icons.rounded.SpatialTracking
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.view.components.NavigationIcon
+import dev.phoenix365.smartdialer.view.components.SmartAnimatedSection
+import dev.phoenix365.smartdialer.view.components.SmartDialog
+import dev.phoenix365.smartdialer.view.components.SmartExpressiveCard
+import dev.phoenix365.smartdialer.view.components.SmartListItem
+import dev.phoenix365.smartdialer.view.components.SmartSwitchListItem
+import dev.phoenix365.smartdialer.view.theme.customColors
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import org.koin.compose.koinInject
+import androidx.core.net.toUri
+import com.ramcosta.composedestinations.generated.destinations.QuickResponsesScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.SpeedDialScreenDestination
+import dev.phoenix365.smartdialer.view.components.SmartSelectListItem
+import dev.phoenix365.smartdialer.view.components.Title
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Destination<RootGraph>
+@Composable
+fun CallSettingScreen(navigator: DestinationsNavigator) {
+    val prefs = koinInject<PreferenceManager>()
+    val context = LocalContext.current
+
+    val settingsState by prefs.settingsChanged.collectAsState()
+    var proximityBg by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_PROXIMITY_SENSOR, true)) }
+    var pocketModePrevention by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_POCKET_MODE, false)) }
+    var floatingCall by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_FLOATING_CALL, false)) }
+    var autoSpeaker by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_AUTO_SPEAKER, false)) }
+    var defaultSim by remember(settingsState) { mutableStateOf(prefs.getInt(PreferenceManager.KEY_DEFAULT_SIM, prefs.getDefaultSimIndexDefault())) }
+    var fullscreenCalls by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_ALWAYS_FULLSCREEN_CALLS, false)) }
+    var speedDial by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SPEED_DIAL, true)) }
+
+    val defaultBusyMsg = stringResource(R.string.busy_mode_default_message)
+    var busyMode by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, false)) }
+    var busyMessageEnable by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_BUSY_MODE_MESSAGE_ENABLED, false)) }
+    var busyMessage by remember(settingsState) { mutableStateOf(prefs.getString(PreferenceManager.KEY_BUSY_MODE_MESSAGE, defaultBusyMsg) ?: defaultBusyMsg) }
+    var showBusyMessageDialog by remember { mutableStateOf(false) }
+    var editingBusyMsgText by remember { mutableStateOf("") }
+
+    val smsPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            busyMode = true
+            prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, true)
+        } else {
+            busyMode = false
+            prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, false)
+        }
+    }
+
+    var visible by remember { mutableStateOf(false) }
+    val screenAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(350),
+        label = "callSettingsAlpha"
+    )
+    LaunchedEffect(Unit) { visible = true }
+
+    val rotation =
+        (context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.rotation
+    val isLtr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val isRotation90 = rotation == if (isLtr) Surface.ROTATION_90 else Surface.ROTATION_270
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                windowInsets = WindowInsets.systemBars.only(
+                    if (isRotation90) WindowInsetsSides.Top + WindowInsetsSides.Horizontal
+                    else WindowInsetsSides.Top
+                ),
+                title = { Title(stringResource(R.string.call_settings)) },
+                navigationIcon = {
+                    NavigationIcon(onClick = { navigator.navigateUp() })
+                }
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(
+                    top = padding.calculateTopPadding(),
+                    start = 0.dp,
+                    end = 0.dp,
+                    bottom = 0.dp
+                )
+                .alpha(screenAlpha),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+
+            item {
+                SmartAnimatedSection(delayMs = 30L) {
+                    SmartExpressiveCard {
+                        SmartListItem(
+                            headline = stringResource(R.string.settings_speed_dial_title),
+                            supporting = if (speedDial) stringResource(R.string.on) else stringResource(
+                                R.string.off
+                            ),
+                            leadingIcon = Icons.Default.Dialpad,
+                            iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkIndigo,
+                            iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorIndigo,
+                            trailingIcon = Icons.Default.ChevronRight,
+                            onClick = { navigator.navigate(SpeedDialScreenDestination) }
+                        )
+                    }
+                }
+            }
+
+            // ── Caller Accounts ───────────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 60L) {
+                    Column {
+                        SettingsSectionLabel("SIM")
+                        SmartExpressiveCard {
+                            val simList = getSimSelectionList(R.string.ask_first)
+                            SmartSelectListItem(
+                                headline = stringResource(R.string.default_sim),
+                                leadingIcon = Icons.Rounded.SimCard,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkGreen,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorGreen,
+                                options = simList,
+                                selectedValue = defaultSim,
+                                onValueChange = { newValue: Int ->
+                                    defaultSim = newValue
+                                    prefs.setInt(PreferenceManager.KEY_DEFAULT_SIM, newValue)
+                                }
+                            )
+                            SmartListItem(
+                                headline = stringResource(R.string.calling_accounts),
+                                supporting = stringResource(R.string.system_settings),
+                                leadingIcon = Icons.Rounded.SettingsPhone,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkGreen,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorGreen,
+                                trailingIcon = Icons.Default.ChevronRight,
+                                onClick = {
+                                    try {
+                                        val intent = Intent(TelecomManager.ACTION_CHANGE_PHONE_ACCOUNTS).apply {
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        }
+                                        context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        try {
+                                            val intent = Intent("android.telecom.action.SHOW_CALL_SETTINGS").apply {
+                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                            }
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {
+                                            try {
+                                                val intent = Intent(android.provider.Settings.ACTION_SETTINGS).apply {
+                                                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                                }
+                                                context.startActivity(intent)
+                                            } catch (_: Exception) {}
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Incoming Call Behavior ─────────────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 90L) {
+                    Column {
+                        SettingsSectionLabel(stringResource(R.string.filter_incoming))
+                        SmartExpressiveCard {
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.fullscreen_calls),
+                                supporting = stringResource(R.string.fullscreen_calls_subtitle),
+                                leadingIcon = Icons.Rounded.CropFree,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkBlue,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorBlue,
+                                checked = fullscreenCalls,
+                                onCheckedChange = {
+                                    fullscreenCalls = it
+                                    prefs.setBoolean(PreferenceManager.KEY_ALWAYS_FULLSCREEN_CALLS, it)
+                                }
+                            )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.pocket_mode_prevention),
+                                supporting = stringResource(R.string.pocket_mode_prevention_subtitle),
+                                leadingIcon = Icons.Rounded.ScreenLockPortrait,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkOrange,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorOrange,
+                                checked = pocketModePrevention,
+                                onCheckedChange = {
+                                    pocketModePrevention = it
+                                    prefs.setBoolean(PreferenceManager.KEY_POCKET_MODE, it)
+                                }
+                            )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.busy_mode),
+                                supporting = stringResource(R.string.busy_mode_subtitle),
+                                leadingIcon = ImageVector.vectorResource(id = R.drawable.ic_phone_cancel),
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkRed,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorRed,
+                                checked = busyMode,
+                                onCheckedChange = { enable ->
+                                    if (enable) {
+                                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                                            smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                                        } else {
+                                            busyMode = true
+                                            prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, true)
+                                        }
+                                    } else {
+                                        busyMode = false
+                                        prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, false)
+                                    }
+                                }
+                            )
+                            if (busyMode) {
+                                SmartSwitchListItem(
+                                    headline = stringResource(R.string.busy_mode_message),
+                                    supporting = busyMessage.ifEmpty { defaultBusyMsg },
+                                    leadingIcon = ImageVector.vectorResource(id = R.drawable.ic_quick_phrases),
+                                    iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+                                    iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+                                    checked = busyMessageEnable,
+                                    onCheckedChange = { enable ->
+                                        if (enable) {
+                                            if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+                                                smsPermissionLauncher.launch(Manifest.permission.SEND_SMS)
+                                            } else {
+                                                busyMessageEnable = true
+                                                prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_MESSAGE_ENABLED, true)
+                                            }
+                                        } else {
+                                            busyMessageEnable = false
+                                            prefs.setBoolean(PreferenceManager.KEY_BUSY_MODE_MESSAGE_ENABLED, false)
+                                        }
+                                    },
+                                    onClick = {
+                                        editingBusyMsgText = busyMessage
+                                        showBusyMessageDialog = true
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            // ── Call Behavior ─────────────────────────────────────────────────
+            item {
+                SmartAnimatedSection(delayMs = 120L) {
+                    Column {
+                        SettingsSectionLabel(stringResource(R.string.call_behavior))
+                        SmartExpressiveCard {
+                            SmartListItem(
+                                headline = stringResource(R.string.quick_responses),
+                                supporting = stringResource(R.string.quick_responses_subtitle),
+                                leadingIcon = ImageVector.vectorResource(id = R.drawable.ic_message_filled),
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+                                trailingIcon = Icons.Default.ChevronRight,
+                                onClick = { navigator.navigate(QuickResponsesScreenDestination) }
+                            )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.proximity_sensor),
+                                supporting = stringResource(R.string.proximity_sensor_subtitle),
+                                leadingIcon = Icons.Rounded.SpatialTracking,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkOrange,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorOrange,
+                                checked = proximityBg,
+                                onCheckedChange = {
+                                    proximityBg = it
+                                    prefs.setBoolean(PreferenceManager.KEY_PROXIMITY_SENSOR, it)
+                                }
+                            )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.floating_ongoing_call),
+                                supporting = stringResource(R.string.floating_ongoing_call_subtitle),
+                                leadingIcon = Icons.Rounded.PictureInPicture,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkBlue,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorBlue,
+                                checked = floatingCall,
+                                onCheckedChange = { newValue ->
+                                    if (newValue && !Settings.canDrawOverlays(context)) {
+                                        context.startActivity(
+                                            Intent(
+                                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                "package:${context.packageName}".toUri()
+                                            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        )
+                                    } else {
+                                        floatingCall = newValue
+                                        prefs.setBoolean(PreferenceManager.KEY_FLOATING_CALL, newValue)
+                                    }
+                                }
+                            )
+//                            SmartSwitchListItem(
+//                                headline   = stringResource(R.string.auto_speaker),
+//                                supporting = stringResource(R.string.auto_speaker_subtitle),
+//                                leadingIcon = Icons.AutoMirrored.Rounded.VolumeUp,
+//                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+//                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+//                                checked = autoSpeaker,
+//                                onCheckedChange = {
+//                                    autoSpeaker = it
+//                                    prefs.setBoolean(PreferenceManager.KEY_AUTO_SPEAKER, it)
+//                                }
+//                            )
+                        }
+                    }
+                }
+            }
+
+            item { SettingsBottomPadding() }
+        }
+
+        if (showBusyMessageDialog) {
+            SmartDialog(
+                onDismissRequest = { showBusyMessageDialog = false },
+                title = stringResource(R.string.edit_busy_message),
+                icon = ImageVector.vectorResource(id = R.drawable.ic_quick_phrases),
+                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkAmber,
+                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorAmber,
+                confirmButton = {
+                    TextButton(onClick = {
+                        val trimmed = editingBusyMsgText.trim()
+                        val finalMsg = if (trimmed.isNotEmpty()) trimmed else defaultBusyMsg
+                        busyMessage = finalMsg
+                        prefs.setString(PreferenceManager.KEY_BUSY_MODE_MESSAGE, finalMsg)
+                        showBusyMessageDialog = false
+                    }) {
+                        Text(
+                            stringResource(R.string.save),
+                            textAlign = TextAlign.End,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBusyMessageDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            ) {
+                OutlinedTextField(
+                    value = editingBusyMsgText,
+                    onValueChange = { editingBusyMsgText = it },
+                    label = { Text(stringResource(R.string.busy_mode_message)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    maxLines = 5
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun getSimSelectionList(askFirstResId: Int): List<Pair<String, Int>> {
+    val context = LocalContext.current
+    val askFirstLabel = stringResource(askFirstResId)
+
+    val finalList = mutableListOf<Pair<String, Int>>()
+    finalList.add(askFirstLabel to 0)
+
+    val hasReadPhoneState = ContextCompat.checkSelfPermission(
+        context, Manifest.permission.READ_PHONE_STATE
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (!hasReadPhoneState) {
+        return remember { finalList }
+    }
+
+    return remember {
+        val telecomManager = context.getSystemService(Context.TELECOM_SERVICE) as? TelecomManager
+        if (telecomManager != null) {
+            try {
+                val rawAccounts = telecomManager.callCapablePhoneAccounts
+
+                val validAccounts = rawAccounts.filter { handle ->
+                    try {
+                        telecomManager.getPhoneAccount(handle) != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                }.distinct()
+
+                validAccounts.forEachIndexed { index, handle ->
+                    val info = try {
+                        telecomManager.getPhoneAccount(handle)
+                    } catch (_: Exception) {
+                        null
+                    }
+
+                    val simNumber = index + 1
+                    val operatorName = info?.label?.toString()
+
+                    val label = if (!operatorName.isNullOrEmpty()) {
+                        if (operatorName.startsWith("SIM", ignoreCase = true)) {
+                            operatorName
+                        } else {
+                            "SIM $simNumber: $operatorName"
+                        }
+                    } else {
+                        "SIM $simNumber"
+                    }
+
+                    finalList.add(label to simNumber)
+                }
+            } catch (e: SecurityException) {
+            }
+        }
+
+        finalList
+    }
+}

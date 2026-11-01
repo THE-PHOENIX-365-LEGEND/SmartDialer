@@ -1,0 +1,610 @@
+package dev.phoenix365.smartdialer.view.screen
+
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CornerSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.rounded.MicNone
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.PermissionStatus
+import com.google.accompanist.permissions.rememberPermissionState
+import dev.phoenix365.smartdialer.controller.ContactsViewModel
+import dev.phoenix365.smartdialer.controller.util.VoiceSearchContract
+import dev.phoenix365.smartdialer.view.components.*
+import dev.phoenix365.smartdialer.view.theme.MyColors.cardColor
+import com.ramcosta.composedestinations.annotation.Destination
+import com.ramcosta.composedestinations.annotation.RootGraph
+import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.ContactDetailsScreenDestination.invoke
+import com.ramcosta.composedestinations.generated.destinations.DialPadScreenDestination
+import com.ramcosta.composedestinations.generated.destinations.NotesScreenDestination
+import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import dev.phoenix365.smartdialer.R
+import dev.phoenix365.smartdialer.cardCornerExtraSmall
+import dev.phoenix365.smartdialer.controller.CallLogViewModel
+import dev.phoenix365.smartdialer.controller.util.NoteManager
+import dev.phoenix365.smartdialer.controller.util.PreferenceManager
+import dev.phoenix365.smartdialer.controller.util.forceLtr
+import dev.phoenix365.smartdialer.controller.util.makeCall
+import dev.phoenix365.smartdialer.controller.util.normalizeNumberDigits
+import dev.phoenix365.smartdialer.controller.util.placeCallWithSimPreference
+import dev.phoenix365.smartdialer.modal.data.CallLogEntry
+import dev.phoenix365.smartdialer.modal.data.getDisplayContactInfo
+import dev.phoenix365.smartdialer.modal.data.getDisplayName
+import dev.phoenix365.smartdialer.view.components.SingleTile
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinActivityViewModel
+import kotlin.text.ifEmpty
+import kotlin.time.Duration.Companion.milliseconds
+
+@OptIn(ExperimentalPermissionsApi::class)
+@Destination<RootGraph>
+@Composable
+fun SearchScreen(navController: NavController, navigator: DestinationsNavigator, autoStartVoiceSearch: Boolean = false) {
+    val permState = rememberPermissionState(Manifest.permission.READ_CONTACTS)
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val showButton by remember { derivedStateOf { listState.firstVisibleItemIndex > 2 } }
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = cardColor //MaterialTheme.colorScheme.surface
+    ) { innerPadding ->
+        Box(modifier = Modifier
+//            .padding(innerPadding)
+            .padding(
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                start = 0.dp, //innerPadding.calculateStartPadding(LayoutDirection.Ltr),
+                end = 0.dp, //innerPadding.calculateEndPadding(LayoutDirection.Ltr),
+                bottom = 0.dp
+            )
+            .background(MaterialTheme.colorScheme.surface)
+            .fillMaxSize()
+        ) {
+            ContactSearchContent(
+                navigator = navigator,
+                isGranted = permState.status == PermissionStatus.Granted,
+                onRequestPermission = { permState.launchPermissionRequest() },
+                listState = listState,
+                autoStartVoiceSearch = autoStartVoiceSearch
+            )
+            ScrollToTopButton(
+                visible = showButton,
+                onClick = { scope.launch { listState.animateScrollToItem(0) } }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@Composable
+fun ContactSearchContent(
+    navigator: DestinationsNavigator,
+    isGranted: Boolean,
+    onRequestPermission: () -> Unit,
+    listState: LazyListState,
+    autoStartVoiceSearch: Boolean
+) {
+    if (!isGranted) {
+        PermissionDeniedView(
+            icon = Icons.Rounded.People,
+            title = stringResource(R.string.contacts_permission),
+            description = stringResource(R.string.search_contacts_permission_description),
+            onGrantClick = onRequestPermission
+        )
+        return
+    }
+
+    val context = LocalContext.current
+    val prefs = koinInject<PreferenceManager>()
+    val contactsVM: ContactsViewModel = koinActivityViewModel()
+    val callLogVM: CallLogViewModel = koinActivityViewModel()
+    val settingsVer by prefs.settingsChanged.collectAsStateWithLifecycle()
+
+    LaunchedEffect(settingsVer) {
+        contactsVM.fetchContactsFull()
+    }
+
+    val contacts by contactsVM.allContactsFull.collectAsStateWithLifecycle()
+    val callLogs by callLogVM.allCallLogs.collectAsStateWithLifecycle()
+
+    val filterState = remember(settingsVer) { prefs.getSearchFilterState() }
+    val displayOrder = remember(settingsVer) { prefs.getInt(PreferenceManager.KEY_CONTACT_DISPLAY_ORDER, 0) }
+    val hideVoiceSearch = remember(settingsVer) { prefs.getBoolean(PreferenceManager.KEY_HIDE_VOICE_SEARCH, false) }
+    val simPref = remember(settingsVer) { prefs.getInt(PreferenceManager.KEY_DEFAULT_SIM, prefs.getDefaultSimIndexDefault()) }
+    val searchEnabled = prefs.getBoolean(PreferenceManager.KEY_TAB_SHOW_SEARCH, false)
+
+    var showSimPicker by remember { mutableStateOf(false) }
+    var pendingNumber by remember { mutableStateOf<String?>(null) }
+
+    if (showSimPicker && pendingNumber != null) {
+        SimPickerDialog(
+            onDismissRequest = { showSimPicker = false },
+            onSimSelected = { handle ->
+                pendingNumber?.let { number -> makeCall(context, number, handle) }
+                showSimPicker = false
+            }
+        )
+    }
+
+    var queryFieldValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(""))
+    }
+    val query = queryFieldValue.text
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var isInitialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!isInitialized) {
+            focusRequester.requestFocus()
+            queryFieldValue =
+                queryFieldValue.copy(selection = TextRange(queryFieldValue.text.length))
+            keyboardController?.show()
+            isInitialized = true
+        }
+    }
+
+    val filteredContacts = remember(query, contacts, filterState.contacts) {
+        if (!filterState.contacts || query.isBlank()) emptyList()
+        else contacts.filter {
+            it.displayName.contains(query, ignoreCase = true) ||
+                    it.nickname.contains(query, ignoreCase = true) ||
+                    it.company.contains(query, ignoreCase = true) ||
+                    it.jobTitle.contains(query, ignoreCase = true) ||
+                    it.phoneNumbers.any { number -> number.replace(" ", "").replace("-", "").contains(query.replace(" ", "").replace("-", "")) } ||
+                    it.emails.any { email -> email.value.replace(" ", "").contains(query.replace(" ", "")) } ||
+                    it.addresses.any { address -> address.formattedAddress.replace(" ", "").contains(query.replace(" ", "")) } ||
+                    it.events.any { event -> event.date.replace(" ", "").replace("-", "").replace(".", "")
+                        .contains(query.replace(" ", "").replace("-", "").replace(".", "")) }
+        }
+    }
+
+    // Numbers that show up in the call log but aren't saved as a contact — i.e. what "Non
+    // contacts" in the Filter menu refers to. Deduplicated by normalized number, keeping the
+    // most recent entry (callLogs is already date-descending).
+    val nonContactResults = remember(query, callLogs, filterState.nonContacts) {
+        if (!filterState.nonContacts || query.isBlank()) emptyList()
+        else {
+            val seen = LinkedHashMap<String, CallLogEntry>()
+            callLogs.asSequence()
+//                .filter { it.contactId.isNullOrBlank() } // Because of this, the condition does not find records for which the contact no longer exists.
+                .forEach { entry ->
+                    val key = normalizeNumberDigits(entry.number).filter { it.isDigit() }.takeLast(9)
+                        .ifBlank { entry.number }
+                    seen.putIfAbsent(key, entry)
+                }
+            seen.values.filter { entry ->
+                entry.number.replace(" ", "").contains(query.replace(" ", "")) ||
+                        (entry.isCallerIdName && (entry.name?.contains(query, ignoreCase = true) == true))
+            }
+        }
+    }
+
+    var refreshNoteTrigger by remember { mutableIntStateOf(0) }
+    // Notes attached to a contact/number (from the call screen or contact info screen).
+    val contactNoteResults = remember(query, filterState.contactNotes, refreshNoteTrigger) {
+        if (!filterState.contactNotes || query.isBlank()) emptyList()
+        else NoteManager.getAllNotes(context).filter { note ->
+            note.contactName.contains(query, ignoreCase = true) ||
+                    note.phoneNumber.contains(query.filter { c -> c.isDigit() || c == '+' }.ifEmpty { query }, ignoreCase = true) ||
+                    note.content.contains(query, ignoreCase = true)
+        }
+    }
+
+    val totalResults = filteredContacts.size + nonContactResults.size + contactNoteResults.size
+    val hasAnyResults = totalResults > 0
+
+    // Voice search
+    var isVoiceSearchTriggered by rememberSaveable { mutableStateOf(false) }
+    var voiceSearchResult by remember { mutableStateOf<String?>(null) }
+    // Synchronizing the query with textFieldValue.text
+    LaunchedEffect(voiceSearchResult) {
+        voiceSearchResult?.let { result ->
+            queryFieldValue = TextFieldValue(result, selection = TextRange(result.length))
+            keyboardController?.hide()
+            voiceSearchResult = null
+        }
+    }
+    val micPermissionState = rememberPermissionState(Manifest.permission.RECORD_AUDIO)
+    val voiceSearchLauncher = rememberLauncherForActivityResult(VoiceSearchContract()) { result ->
+        result?.let {
+            voiceSearchResult = result
+            keyboardController?.hide()
+        }
+    }
+    // Automatic activation of voice search
+    LaunchedEffect(Unit) {
+        if (autoStartVoiceSearch && !isVoiceSearchTriggered) {
+            // Allow time for the UI to fully initialize
+            delay(300.milliseconds)
+
+            if (micPermissionState.status == PermissionStatus.Granted) {
+                isVoiceSearchTriggered = true
+                voiceSearchLauncher.launch(Unit)
+            } else {
+                // Allow time for the UI to fully initialize
+                micPermissionState.launchPermissionRequest()
+                // You can wait for the resolution result or handle it in a separate LaunchedEffect
+            }
+        }
+    }
+    // If permission has been requested and granted, we'll start voice search
+    LaunchedEffect(micPermissionState.status) {
+        if (autoStartVoiceSearch && !isVoiceSearchTriggered && micPermissionState.status == PermissionStatus.Granted) {
+            isVoiceSearchTriggered = true
+            voiceSearchLauncher.launch(Unit)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search bar
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+//            shape = RoundedCornerShape(28.dp),
+            color = cardColor, //MaterialTheme.colorScheme.surfaceContainerHigh,
+            shadowElevation = 0.dp
+        ) {
+            TextField(
+                value = queryFieldValue,
+                onValueChange = { queryFieldValue = it },
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                placeholder = { Text(stringResource(R.string.search)) },
+                leadingIcon = {
+                    if (!searchEnabled) IconButton(onClick = { navigator.navigateUp() }) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.back))
+                    }
+                },
+                trailingIcon = {
+                    Row {
+                        AnimatedVisibility(
+                            visible = query.isNotEmpty(),
+                            enter = fadeIn() + scaleIn(),
+                            exit = fadeOut() + scaleOut()
+                        ) {
+                            IconButton(onClick = {
+                                queryFieldValue = TextFieldValue("", selection = TextRange(0))
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear))
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = micPermissionState.status == PermissionStatus.Granted && !hideVoiceSearch,
+                            enter = fadeIn() + scaleIn(),
+                            exit = fadeOut() + scaleOut()
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    if (micPermissionState.status == PermissionStatus.Granted) {
+                                        voiceSearchLauncher.launch(Unit)
+                                    } else {
+                                        micPermissionState.launchPermissionRequest()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.MicNone,
+                                    contentDescription = stringResource(R.string.voice_input),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        SearchFilterButton()
+                        Spacer(modifier = Modifier.size(4.dp))
+                    }
+                },
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                ),
+                singleLine = true
+            )
+        }
+        HorizontalDivider()
+
+        // Call this number chip
+        AnimatedVisibility(
+            visible = query.isNotEmpty() && query.all { it.isDigit() || it == '+' || it == '-' || it == ' ' },
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.primaryContainer
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 24.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(Icons.Default.Call, null, tint = MaterialTheme.colorScheme.primary)
+                    Text(
+                        text = stringResource(R.string.call_query, query),
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = {
+                        navigator.navigate(DialPadScreenDestination(initialNumber = query))
+                    }) {
+                        Icon(Icons.Default.Dialpad, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+
+        when {
+            query.isBlank() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Search,
+                            null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Text(
+                            stringResource(R.string.search),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            !hasAnyResults -> {
+                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.SearchOff,
+                            null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Text(
+//                            "No results for \"$query\"",
+                            stringResource(R.string.no_results),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
+            else -> {
+                ScrollHapticsEffect(listState = listState)
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (filteredContacts.isNotEmpty()) {
+                        item {
+                            SmartSectionHeader(
+                                title = stringResource(R.string.contacts),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                            SmartExpressiveCard {
+                                filteredContacts.forEach { contact ->
+//                                    ContactListItem(
+//                                        contact = contact,
+//                                        navigator = navigator,
+//                                        displayOrder = displayOrder
+//                                    )
+                                    val displayName = getDisplayName(contact, displayOrder)
+                                    val defaultOrFirstPhone = contact.phoneDetails.firstOrNull { it.isPrimary }?.number ?: contact.phoneNumbers.firstOrNull()
+                                    SingleTile(
+                                        title = displayName,
+                                        subtitle = getDisplayContactInfo(contact),
+                                        photoUri = contact.photoUri,
+                                        phoneNumber = defaultOrFirstPhone,
+                                        trailingContent = {
+//                                                navigator.navigate(DialPadScreenDestination(initialNumber = entry.number))
+                                            if (defaultOrFirstPhone != null) {
+                                                IconButton(onClick = {
+                                                    placeCallWithSimPreference(context, defaultOrFirstPhone, simPref) {
+                                                        pendingNumber = defaultOrFirstPhone; showSimPicker = true
+                                                    }
+                                                }) {
+                                                    Icon(Icons.Outlined.Call, contentDescription = stringResource(R.string.call), tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        },
+                                        onCall = {
+                                            if (defaultOrFirstPhone != null) {
+                                                placeCallWithSimPreference(context, defaultOrFirstPhone, simPref) {
+                                                    pendingNumber = defaultOrFirstPhone; showSimPicker = true
+                                                }
+                                            }
+                                        },
+                                        onClick = {
+                                            if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
+                                                performAppHaptic(
+                                                    context,
+                                                    prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
+                                                    prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
+                                                )
+                                            }
+                                            navigator.navigate(ContactDetailsScreenDestination(contactId = contact.id))
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (nonContactResults.isNotEmpty()) {
+                        item {
+                            SmartSectionHeader(
+                                title = stringResource(R.string.calls),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                            SmartExpressiveCard {
+                                nonContactResults.forEach { entry ->
+                                    val displayName = if (entry.name == entry.number) entry.number.forceLtr() else entry.name?.ifEmpty { entry.number } ?: entry.number.ifEmpty { "Unknown" }
+                                    SingleTile(
+                                        title = displayName,
+                                        subtitle = if (entry.name.isNullOrEmpty() || entry.name == entry.number) null else entry.number,
+                                        icon = Icons.Default.Person,
+                                        phoneNumber = entry.number,
+                                        trailingContent = {
+                                            IconButton(onClick = {
+//                                                navigator.navigate(DialPadScreenDestination(initialNumber = entry.number))
+                                                placeCallWithSimPreference(context, entry.number, simPref) {
+                                                    pendingNumber = entry.number; showSimPicker = true
+                                                }
+                                            }) {
+                                                Icon(Icons.Outlined.Call, contentDescription = "Call", tint = MaterialTheme.colorScheme.primary)
+                                            }
+                                        },
+                                        onCall = {
+                                            placeCallWithSimPreference(context, entry.number, simPref) {
+                                                pendingNumber = entry.number; showSimPicker = true
+                                            }
+                                        },
+                                        onClick = {
+                                            if (prefs.getBoolean(PreferenceManager.KEY_APP_HAPTICS, true)) {
+                                                performAppHaptic(
+                                                    context,
+                                                    prefs.getString(PreferenceManager.KEY_APP_HAPTICS_STRENGTH, "light") ?: "light",
+                                                    prefs.getFloat(PreferenceManager.KEY_HAPTICS_CUSTOM_INTENSITY, 0.5f)
+                                                )
+                                            }
+                                            navigator.navigate(ContactDetailsScreenDestination(phoneNumber = entry.number))
+                                        },
+                                        showCreateContact = entry.contactId == null
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (contactNoteResults.isNotEmpty()) {
+                        item {
+                            SmartSectionHeader(
+                                title = stringResource(R.string.call_notes),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                            SmartExpressiveCard {
+                                contactNoteResults.forEach { note ->
+                                    var showNoteEditor by remember { mutableStateOf(false) }
+                                    SingleTile(
+                                        title = note.contactName.ifBlank { note.phoneNumber.ifBlank { "Unknown" } },
+                                        subtitle = note.content,
+                                        icon = Icons.AutoMirrored.Outlined.StickyNote2,
+                                        phoneNumber = note.phoneNumber,
+                                        supportingContent = {
+                                            Text(
+                                                note.content,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.padding(top = 4.dp)
+                                            )
+                                        },
+                                        onClick = {
+                                            showNoteEditor = true
+                                        },
+                                        useLongClick = false
+                                    )
+                                    if (showNoteEditor) {
+                                        NoteEditorDialog(
+                                            contactName = note.contactName,
+                                            phoneNumber = note.phoneNumber,
+                                            onDismiss = {
+                                                showNoteEditor = false
+                                                refreshNoteTrigger++
+                                            }
+                                        )
+                                    }
+                                }
+                                if (contactNoteResults.size > 1) {
+                                    TextButton(
+                                        onClick = {
+                                            NavBarVisibilityState.hideForSearchResult = true
+                                            navigator.navigate(NotesScreenDestination(highlightQuery = query))
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .offset(
+                                                x = 0.dp,
+                                                y = (-4).dp
+                                            ), // We'll make up for the indentation
+                                        colors = ButtonDefaults.textButtonColors()
+                                            .copy(containerColor = cardColor),
+                                        shape = MaterialTheme.shapes.extraLarge.copy(
+                                            topStart = CornerSize(cardCornerExtraSmall),
+                                            topEnd = CornerSize(cardCornerExtraSmall)
+                                        ),
+                                    ) {
+                                        Text(stringResource(R.string.filter_all))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item { Spacer(modifier = Modifier.height(300.dp)) }
+                }
+            }
+        }
+    }
+}
