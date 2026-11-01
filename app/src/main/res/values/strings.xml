@@ -273,6 +273,12 @@
     <string name="settings_speed_dial_open">Open Speed Dial Settings?</string>
 
     <string name="quick_response">Quick Response</string>
+    <string name="auto_redial" tools:ignore="MissingTranslation">Auto Redial</string>
+    <string name="auto_redial_subtitle" tools:ignore="MissingTranslation">Automatically redial when an outgoing call is busy, rejected, or unanswered</string>
+    <string name="auto_redial_attempts" tools:ignore="MissingTranslation">Redial attempts</string>
+    <string name="auto_redial_delay" tools:ignore="MissingTranslation">Delay between attempts</string>
+    <string name="attempts_format" tools:ignore="MissingTranslation">%1$d attempts</string>
+    <string name="seconds_format" tools:ignore="MissingTranslation">%1$d seconds</string>
     <string name="quick_responses">Quick Responses</string>
     <string name="quick_responses_subtitle">Manage canned SMS decline responses for incoming calls</string>
     <string name="quick_responses_description">Tap the message button during an incoming call to decline and send one of these canned replies via SMS.</string>

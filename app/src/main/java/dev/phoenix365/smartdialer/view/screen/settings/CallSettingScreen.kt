@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.rounded.Autorenew
 import androidx.compose.material.icons.rounded.CropFree
 import androidx.compose.material.icons.rounded.PictureInPicture
 import androidx.compose.material.icons.rounded.ScreenLockPortrait
@@ -71,6 +72,9 @@ fun CallSettingScreen(navigator: DestinationsNavigator) {
     var defaultSim by remember(settingsState) { mutableStateOf(prefs.getInt(PreferenceManager.KEY_DEFAULT_SIM, prefs.getDefaultSimIndexDefault())) }
     var fullscreenCalls by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_ALWAYS_FULLSCREEN_CALLS, false)) }
     var speedDial by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_SPEED_DIAL, true)) }
+    var autoRedial by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, false)) }
+    var redialAttempts by remember(settingsState) { mutableStateOf(prefs.getInt(PreferenceManager.KEY_REDIAL_ATTEMPTS, 3)) }
+    var redialDelay by remember(settingsState) { mutableStateOf(prefs.getInt(PreferenceManager.KEY_REDIAL_DELAY, 3000)) }
 
     val defaultBusyMsg = stringResource(R.string.busy_mode_default_message)
     var busyMode by remember(settingsState) { mutableStateOf(prefs.getBoolean(PreferenceManager.KEY_BUSY_MODE_ENABLED, false)) }
@@ -335,6 +339,53 @@ fun CallSettingScreen(navigator: DestinationsNavigator) {
                                     }
                                 }
                             )
+                            SmartSwitchListItem(
+                                headline   = stringResource(R.string.auto_redial),
+                                supporting = stringResource(R.string.auto_redial_subtitle),
+                                leadingIcon = Icons.Rounded.Autorenew,
+                                iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkIndigo,
+                                iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorIndigo,
+                                checked = autoRedial,
+                                onCheckedChange = {
+                                    autoRedial = it
+                                    prefs.setBoolean(PreferenceManager.KEY_AUTO_REDIAL_BUSY, it)
+                                }
+                            )
+                            if (autoRedial) {
+                                val attemptOptions = listOf(1, 2, 3, 5, 10).map { count ->
+                                    Pair(stringResource(R.string.attempts_format, count), count)
+                                }
+                                val delayOptions = listOf(
+                                    Pair(stringResource(R.string.seconds_format, 1), 1000),
+                                    Pair(stringResource(R.string.seconds_format, 3), 3000),
+                                    Pair(stringResource(R.string.seconds_format, 5), 5000),
+                                    Pair(stringResource(R.string.seconds_format, 10), 10000)
+                                )
+                                SmartSelectListItem(
+                                    headline = stringResource(R.string.auto_redial_attempts),
+                                    leadingIcon = Icons.Rounded.TouchApp,
+                                    iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkIndigo,
+                                    iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorIndigo,
+                                    options = attemptOptions,
+                                    selectedValue = redialAttempts,
+                                    onValueChange = { newValue ->
+                                        redialAttempts = newValue
+                                        prefs.setInt(PreferenceManager.KEY_REDIAL_ATTEMPTS, newValue)
+                                    }
+                                )
+                                SmartSelectListItem(
+                                    headline = stringResource(R.string.auto_redial_delay),
+                                    leadingIcon = Icons.Rounded.TouchApp,
+                                    iconContainerColor = MaterialTheme.colorScheme.customColors.colorDarkIndigo,
+                                    iconBgContainerColor = MaterialTheme.colorScheme.customColors.colorIndigo,
+                                    options = delayOptions,
+                                    selectedValue = redialDelay,
+                                    onValueChange = { newValue ->
+                                        redialDelay = newValue
+                                        prefs.setInt(PreferenceManager.KEY_REDIAL_DELAY, newValue)
+                                    }
+                                )
+                            }
 //                            SmartSwitchListItem(
 //                                headline   = stringResource(R.string.auto_speaker),
 //                                supporting = stringResource(R.string.auto_speaker_subtitle),
